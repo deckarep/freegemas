@@ -10,11 +10,14 @@ const optionsFile = "options.json";
 /// And that's it folks!
 pub const OptionsManager = struct {
     // options: key/value thingy.
+    optionsDir: []const u8,
 
     const Self = @This();
 
     pub fn init() Self {
-        return Self{};
+        return Self{
+            .optionsDir = undefined,
+        };
     }
 
     pub fn loadResources(self: *Self) void {
@@ -74,7 +77,8 @@ pub const OptionsManager = struct {
         return true;
     }
 
-    pub fn getFullscreenEnabled() bool {
+    pub fn getFullscreenEnabled(self: Self) bool {
+        _ = self;
         return false;
     }
 };

@@ -1,6 +1,8 @@
 const std = @import("std");
 const utility = @import("utility.zig");
 const DrawingQueueOp = @import("go_drawingqueue.zig").DrawingQueueOp;
+const DrawingQueue = @import("go_drawingqueue.zig").DrawingQueue;
+const optsMan = @import("options_manager.zig");
 const c = @import("cdefs.zig").c;
 
 pub const GoWindow = struct {
@@ -8,7 +10,7 @@ pub const GoWindow = struct {
     mShouldRun: bool,
 
     /// Time interval between frames, in milliseconds
-    mUpdateInterval: u32,
+    mUpdateInterval: u32 = 17,
 
     /// Ticks recorded in last frame
     mLastTicks: u32,
@@ -26,21 +28,35 @@ pub const GoWindow = struct {
     /// Main renderer
     mRenderer: ?*c.SDL_Renderer = null,
 
-    // Rendering queue
-    //DrawingQueue mDrawingQueue;
+    /// Rendering queue
+    mDrawingQueue: DrawingQueue,
 
-    // Options manager to get full screen setting
-    //OptionsManager mOptions;
+    /// Options manager to get full screen setting
+    mOptions: optsMan.OptionsManager,
+
+    /// Whatever is the current state...TODO
+    mCurrentState: ?u8 = null,
 
     // List of connected game controllers
     //std::vector<SDL_GameController*> gameControllers;
 
     const Self = @This();
 
-    pub fn init(width: comptime_int, height: comptime_int, caption: [:0]const u8, updateInterval: u32) Self {
+    pub fn init(
+        width: comptime_int,
+        height: comptime_int,
+        caption: [:0]const u8,
+        updateInterval: u32,
+        allocator: std.mem.Allocator,
+    ) Self {
         var o = Self{
+            .mShouldRun = false,
+            .mMouseX = -1,
+            .mMouseY = -1,
             .mLastTicks = c.SDL_GetTicks(),
             .mUpdateInterval = updateInterval,
+            .mOptions = optsMan.OptionsManager.init(),
+            .mDrawingQueue = DrawingQueue.init(allocator),
         };
 
         if (c.SDL_Init(c.SDL_INIT_VIDEO | c.SDL_INIT_AUDIO | c.SDL_INIT_GAMECONTROLLER) < 0) {
@@ -48,7 +64,7 @@ pub const GoWindow = struct {
         }
 
         // Set texture filtering to linear
-        if (!c.SDL_SetHint(c.SDL_HINT_RENDER_SCALE_QUALITY, "1")) {
+        if (c.SDL_SetHint(c.SDL_HINT_RENDER_SCALE_QUALITY, "1") < 0) {
             std.log.warn("Warning: Linear texture filtering not enabled!", .{});
         }
 
@@ -84,25 +100,24 @@ pub const GoWindow = struct {
         }
 
         // For proper scaling in all resolutions
-        c.SDL_RenderSetLogicalSize(o.mRenderer, width, height);
+        _ = c.SDL_RenderSetLogicalSize(o.mRenderer, width, height);
 
         // Initialize renderer color
-        c.SDL_SetRenderDrawColor(o.mRenderer, 0, 0, 0, 255);
+        _ = c.SDL_SetRenderDrawColor(o.mRenderer, 0, 0, 0, 255);
 
         // Initialize PNG loading
         const imgFlags = c.IMG_INIT_PNG;
 
-        if (!(c.IMG_Init(imgFlags) & imgFlags)) {
+        if ((c.IMG_Init(imgFlags) & imgFlags) < 0) {
             @panic("failed to init img png stuff with err!");
         }
 
         // Set full screen mode
-        // TODO!
-        //mOptions.loadResources();
-        //o.setFullscreen(mOptions.getFullscreenEnabled());
+        o.mOptions.loadResources();
+        o.setFullscreen(o.mOptions.getFullscreenEnabled());
 
         // Hide cursor
-        c.SDL_ShowCursor(0);
+        _ = c.SDL_ShowCursor(0);
 
         return o;
     }
@@ -126,7 +141,148 @@ pub const GoWindow = struct {
         c.SDL_Quit();
     }
 
-    pub fn show(self: *Self) void {}
+    pub fn update(self: *Self) void {
+        if (self.mCurrentState) |cs| {
+            _ = cs;
+            //cs.update();
+        }
+    }
+
+    pub fn draw(self: *Self) void {
+        if (self.mCurrentState) |cs| {
+            _ = cs;
+            //cs.draw();
+        }
+    }
+
+    pub fn show(self: *Self) void {
+        // To store the ticks passed between frames
+        var newTicks: u32 = undefined;
+
+        // To poll events
+        var e: c.SDL_Event = undefined;
+
+        // Show the window
+        c.SDL_ShowWindow(self.mWindow);
+
+        self.mShouldRun = true;
+
+        // Main game loop
+        exit: while (self.mShouldRun) {
+
+            // Get ticks
+            newTicks = c.SDL_GetTicks();
+
+            // Get ticks from last frame and compare with framerate
+            if (newTicks - self.mLastTicks < self.mUpdateInterval) {
+                c.SDL_Delay(self.mUpdateInterval - (newTicks - self.mLastTicks));
+                continue;
+            }
+
+            // Event loop
+            while (c.SDL_PollEvent(&e) != 0) {
+                switch (e.type) {
+                    c.SDL_QUIT => {
+                        // Yes, goto: http://stackoverflow.com/a/1257776/276451
+                        // goto exit;
+
+                        // r.c.: Nope, I don't think so -- no goto is needed for Zig.
+                        break :exit;
+                    },
+
+                    c.SDL_KEYDOWN => {
+                        self.mMouseActive = false;
+                        //self.buttonDown(e.key.keysym.sym);
+                    },
+
+                    c.SDL_KEYUP => {
+                        //self.buttonUp(e.key.keysym.sym);
+                    },
+
+                    c.SDL_MOUSEMOTION => {
+                        self.mMouseActive = true;
+                        self.mMouseX = e.motion.x;
+                        self.mMouseY = e.motion.y;
+                    },
+
+                    c.SDL_MOUSEBUTTONDOWN => {
+                        self.mMouseActive = true;
+                        // self.mouseButtonDown(e.button.button);
+                    },
+
+                    c.SDL_MOUSEBUTTONUP => {
+                        //self.mouseButtonUp(e.button.button);
+                    },
+
+                    c.SDL_CONTROLLERBUTTONDOWN => {
+                        self.mMouseActive = false;
+                        //self.controllerButtonDown(e.cbutton.button);
+                    },
+
+                    c.SDL_CONTROLLERDEVICEADDED => {
+                        //self.openGameController(e.cdevice.which);
+                    },
+
+                    c.SDL_CONTROLLERDEVICEREMOVED => {
+                        //self.closeDisconnectedGameControllers();
+                    },
+                    else => {},
+                }
+            }
+
+            // Process logic
+            self.update();
+
+            // Process drawing
+            self.draw();
+
+            // Render the background clear
+            _ = c.SDL_RenderClear(self.mRenderer);
+
+            // Iterator for drawing operations
+            // GoSDL::DrawingQueueIterator qIt;
+            // const GoSDL::DrawingQueueOperation * op;
+
+            // // Iterate all pending drawing operations
+            // for (qIt = mDrawingQueue.begin(); qIt != mDrawingQueue.end(); ++qIt)
+            // {
+            //     // Get a reference of the current operation
+            //     op = &(qIt->second);
+
+            //     // Set transparency
+            //     SDL_SetTextureAlphaMod(op->mTexture, op->mAlpha);
+
+            //     // Set coloring
+            //     SDL_SetTextureColorMod(op->mTexture, op->mColor.r, op->mColor.g, op->mColor.b);
+
+            //     // Draw the texture
+            //     int res = SDL_RenderCopyEx(this->mRenderer,
+            //                     op->mTexture,
+            //                     NULL,
+            //                     &(op->mDstRect),
+            //                     op->mAngle,
+            //                     NULL,
+            //                     SDL_FLIP_NONE);
+
+            //     // Check for errors when drawing
+            //     if (res != 0)
+            //     {
+            //         printf("ERROR %s \n", SDL_GetError());
+            //     }
+            // }
+
+            // Empty the drawing queue
+            self.mDrawingQueue.clear();
+
+            // Update the screen
+            c.SDL_RenderPresent(self.mRenderer);
+
+            // Update the ticks
+            self.mLastTicks = newTicks;
+        }
+
+        // Exit point for goto within switch
+    }
 
     pub fn close(self: *Self) void {
         self.mShouldRun = false;
@@ -141,9 +297,7 @@ pub const GoWindow = struct {
         alpha: u8,
         color: c.SDL_Color,
     ) void {
-        // Create the new drawing operation.
-
-        // Fill the operation.
+        // Create the new drawing operation and fill it.
         const op = DrawingQueueOp{
             .mTexture = texture,
             .mDstRect = destRect,
@@ -166,11 +320,11 @@ pub const GoWindow = struct {
         _ = self;
     }
 
-    pub fn setFullScreen(self: Self, value: bool) void {
+    pub fn setFullscreen(self: Self, value: bool) void {
         if (value) {
-            c.SDL_SetWindowFullscreen(self.mWindow.?, c.SDL_WINDOW_FULLSCREEN);
+            _ = c.SDL_SetWindowFullscreen(self.mWindow.?, c.SDL_WINDOW_FULLSCREEN);
         } else {
-            c.SDL_SetWindowFullscreen(self.mWindow.?, 0);
+            _ = c.SDL_SetWindowFullscreen(self.mWindow.?, 0);
         }
     }
 };

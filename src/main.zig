@@ -1,5 +1,6 @@
 const std = @import("std");
 const dq = @import("go_drawingqueue.zig");
+const goWin = @import("go_window.zig");
 const c = @import("cdefs.zig").c;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -117,6 +118,15 @@ pub fn main() !void {
         std.debug.print("op => {?}\n", .{entry});
     }
 
+    // In the original Game <inherits::from> GoWindow
+    var w = goWin.GoWindow.init(
+        800,
+        600,
+        "Fucker!",
+        30,
+        alloc,
+    );
+    w.show();
     // var w = Game{};
     // w.show();
 }
