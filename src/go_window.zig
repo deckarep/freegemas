@@ -240,36 +240,33 @@ pub const GoWindow = struct {
             _ = c.SDL_RenderClear(self.mRenderer);
 
             // Iterator for drawing operations
-            // GoSDL::DrawingQueueIterator qIt;
-            // const GoSDL::DrawingQueueOperation * op;
+            var iter = self.mDrawingQueue.getIterator();
+            while (iter.next()) |*op| {
+                // Set transparency
+                _ = c.SDL_SetTextureAlphaMod(op.mTexture, op.mAlpha);
+                // Set coloring
+                _ = c.SDL_SetTextureColorMod(
+                    op.mTexture,
+                    op.mColor.r,
+                    op.mColor.g,
+                    op.mColor.b,
+                );
+                // Draw the texture
+                const res = c.SDL_RenderCopyEx(
+                    self.mRenderer,
+                    op.mTexture,
+                    null,
+                    &op.mDstRect,
+                    op.mAngle,
+                    null,
+                    c.SDL_FLIP_NONE,
+                );
 
-            // // Iterate all pending drawing operations
-            // for (qIt = mDrawingQueue.begin(); qIt != mDrawingQueue.end(); ++qIt)
-            // {
-            //     // Get a reference of the current operation
-            //     op = &(qIt->second);
-
-            //     // Set transparency
-            //     SDL_SetTextureAlphaMod(op->mTexture, op->mAlpha);
-
-            //     // Set coloring
-            //     SDL_SetTextureColorMod(op->mTexture, op->mColor.r, op->mColor.g, op->mColor.b);
-
-            //     // Draw the texture
-            //     int res = SDL_RenderCopyEx(this->mRenderer,
-            //                     op->mTexture,
-            //                     NULL,
-            //                     &(op->mDstRect),
-            //                     op->mAngle,
-            //                     NULL,
-            //                     SDL_FLIP_NONE);
-
-            //     // Check for errors when drawing
-            //     if (res != 0)
-            //     {
-            //         printf("ERROR %s \n", SDL_GetError());
-            //     }
-            // }
+                // Check for errors when drawing
+                if (res != 0) {
+                    std.log.err("error on drawing texture: {s}", .{std.mem.span(c.SDL_GetError())});
+                }
+            }
 
             // Empty the drawing queue
             self.mDrawingQueue.clear();

@@ -122,7 +122,7 @@ pub fn main() !void {
     var w = goWin.GoWindow.init(
         800,
         600,
-        "Fucker!",
+        "Free Gems - Zig Edition - @deckarep",
         30,
         alloc,
     );
