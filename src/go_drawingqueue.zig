@@ -1,19 +1,20 @@
 const std = @import("std");
 const c = @import("cdefs.zig").c;
+const goWin = @import("go_window.zig");
 
 pub const DrawingQueueOp = struct {
-    /// mZDepth is used for the priority queue!
-    mZdepth: f32,
-
+    mAngle: f64,
     mTexture: *c.SDL_Texture,
     mDstRect: c.SDL_Rect,
-    mAngle: f64,
-    mAlpha: u8,
     mColor: c.SDL_Color,
+    /// mZDepth is used for the priority queue!
+    /// Value is overwritten anyway.
+    mZdepth: f32 = -1.0,
+    mAlpha: u8,
 };
 
 /// lessThan will cause the priority queue to drawin from smallest z-depths to larger.
-fn lessThan(context: void, a: DrawingQueueOp, b: DrawingQueueOp) std.math.Order {
+pub fn lessThan(context: void, a: DrawingQueueOp, b: DrawingQueueOp) std.math.Order {
     _ = context;
     return std.math.order(a.mZdepth, b.mZdepth);
 }
@@ -30,11 +31,12 @@ pub const DrawingQueue = struct {
     const Self = @This();
 
     // This will instantiate a ready-to-go DrawingQueue.
-    pub fn init(allocator: std.mem.Allocator) Self {
-        return Self{
+    pub fn init(allocator: std.mem.Allocator) !Self {
+        const o = Self{
             .allocator = allocator,
             .queue = opQueue.init(allocator, {}),
         };
+        return o;
     }
 
     // Releases all memory.
@@ -49,6 +51,7 @@ pub const DrawingQueue = struct {
         // and only that field for the priority.
         var opWithDepth = op;
         opWithDepth.mZdepth = z;
+
         try self.queue.add(opWithDepth);
     }
 

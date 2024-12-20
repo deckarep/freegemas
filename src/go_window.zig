@@ -3,7 +3,13 @@ const utility = @import("utility.zig");
 const DrawingQueueOp = @import("go_drawingqueue.zig").DrawingQueueOp;
 const DrawingQueue = @import("go_drawingqueue.zig").DrawingQueue;
 const optsMan = @import("options_manager.zig");
+const st = @import("state.zig");
+const StateHowToPlay = @import("state_how_to_play.zig").StateHowToPlay;
+const goImg = @import("go_image.zig");
 const c = @import("cdefs.zig").c;
+
+// Temporarily public for troubleshooting.
+pub var howToPlay: ?StateHowToPlay = null;
 
 pub const GoWindow = struct {
     /// Running flag
@@ -22,6 +28,10 @@ pub const GoWindow = struct {
     mMouseX: i32,
     mMouseY: i32,
 
+    /// Mouse coordinates
+    mWidth: i32,
+    mHeight: i32,
+
     /// Main rendering window
     mWindow: ?*c.SDL_Window = null,
 
@@ -35,7 +45,15 @@ pub const GoWindow = struct {
     mOptions: optsMan.OptionsManager,
 
     /// Whatever is the current state...TODO
-    mCurrentState: ?u8 = null,
+    mCurrentState: ?st.State = null,
+    mCurrentStateStr: []const u8 = "<none>",
+
+    mMouseCursor: goImg.GoImage = undefined,
+
+    mCaption: [:0]const u8 = undefined,
+
+    /// Sounds controller
+    //GameSounds mGameSounds;
 
     // List of connected game controllers
     //std::vector<SDL_GameController*> gameControllers;
@@ -48,18 +66,34 @@ pub const GoWindow = struct {
         caption: [:0]const u8,
         updateInterval: u32,
         allocator: std.mem.Allocator,
-    ) Self {
-        var o = Self{
+    ) !Self {
+        std.debug.print("GoWindow::init()\n", .{});
+        const o = Self{
+            .mCaption = caption,
+            .mWidth = width,
+            .mHeight = height,
             .mShouldRun = false,
             .mMouseX = -1,
             .mMouseY = -1,
             .mLastTicks = c.SDL_GetTicks(),
             .mUpdateInterval = updateInterval,
             .mOptions = optsMan.OptionsManager.init(),
-            .mDrawingQueue = DrawingQueue.init(allocator),
+            .mDrawingQueue = try DrawingQueue.init(allocator),
         };
 
-        if (c.SDL_Init(c.SDL_INIT_VIDEO | c.SDL_INIT_AUDIO | c.SDL_INIT_GAMECONTROLLER) < 0) {
+        // WARNING: I spent hours tracking down an insidious bug
+        // 1. Notice how I just set fields in the "o" object and return immediately?
+        // 2. Previously, I was also calling other init functions and those functions
+        //    were getting the address of stack "o" which is obviously undefined
+        //    behavior. Just an oversight on my end but damn, was it freak-nasty.
+        // 3. The fix was to introduce a separate setup function below which
+        //    acts as more of an initialization of everything once the object
+        //    is created.
+        return o;
+    }
+
+    pub fn setup(self: *Self) !void {
+        if (c.SDL_Init(c.SDL_INIT_VIDEO | c.SDL_INIT_AUDIO) < 0) { //| c.SDL_INIT_GAMECONTROLLER) < 0) {
             @panic("failed to init SDL with an error of sorts!");
         }
 
@@ -78,32 +112,32 @@ pub const GoWindow = struct {
         }
 
         // Create window
-        o.mWindow = c.SDL_CreateWindow(
-            caption.ptr,
+        self.mWindow = c.SDL_CreateWindow(
+            self.mCaption.ptr,
             c.SDL_WINDOWPOS_UNDEFINED,
             c.SDL_WINDOWPOS_UNDEFINED,
-            width,
-            height,
+            self.mWidth,
+            self.mHeight,
             c.SDL_WINDOW_RESIZABLE,
         );
         // If window could not be created, throw an error
-        if (o.mWindow == null) {
+        if (self.mWindow == null) {
             @panic("failed to create window with err!");
         }
 
         // Create renderer for the window
-        o.mRenderer = c.SDL_CreateRenderer(o.mWindow, -1, c.SDL_RENDERER_ACCELERATED);
+        self.mRenderer = c.SDL_CreateRenderer(self.mWindow, -1, c.SDL_RENDERER_ACCELERATED);
 
         // If rendered could not be created, throw an error
-        if (o.mRenderer == null) {
+        if (self.mRenderer == null) {
             @panic("failed to create SDL renderer with err!");
         }
 
         // For proper scaling in all resolutions
-        _ = c.SDL_RenderSetLogicalSize(o.mRenderer, width, height);
+        _ = c.SDL_RenderSetLogicalSize(self.mRenderer, self.mWidth, self.mHeight);
 
         // Initialize renderer color
-        _ = c.SDL_SetRenderDrawColor(o.mRenderer, 0, 0, 0, 255);
+        _ = c.SDL_SetRenderDrawColor(self.mRenderer, 0, 0, 0, 255);
 
         // Initialize PNG loading
         const imgFlags = c.IMG_INIT_PNG;
@@ -113,13 +147,20 @@ pub const GoWindow = struct {
         }
 
         // Set full screen mode
-        o.mOptions.loadResources();
-        o.setFullscreen(o.mOptions.getFullscreenEnabled());
+        self.mOptions.loadResources();
+        self.setFullscreen(self.mOptions.getFullscreenEnabled());
 
         // Hide cursor
         _ = c.SDL_ShowCursor(0);
 
-        return o;
+        // Since we're not creating a Game class for Zig.
+        // The "Game" constructor logic is here below.
+        self.mMouseCursor = goImg.GoImage.init();
+        self.mMouseCursor.setWindow(self);
+        try self.mMouseCursor.setPath("media/handCursor.png");
+
+        // TODO: main menu for starters.
+        try self.changeState("stateHowtoplay");
     }
 
     pub fn deinit(self: *Self) void {
@@ -141,21 +182,20 @@ pub const GoWindow = struct {
         c.SDL_Quit();
     }
 
-    pub fn update(self: *Self) void {
+    pub fn update(self: *Self) !void {
         if (self.mCurrentState) |cs| {
-            _ = cs;
-            //cs.update();
+            try cs.update();
         }
     }
 
-    pub fn draw(self: *Self) void {
+    pub fn draw(self: *Self) !void {
         if (self.mCurrentState) |cs| {
-            _ = cs;
-            //cs.draw();
+            try cs.draw();
         }
     }
 
-    pub fn show(self: *Self) void {
+    pub fn show(self: *Self) !void {
+        std.debug.print("show\n", .{});
         // To store the ticks passed between frames
         var newTicks: u32 = undefined;
 
@@ -231,15 +271,15 @@ pub const GoWindow = struct {
             }
 
             // Process logic
-            self.update();
+            try self.update();
 
             // Process drawing
-            self.draw();
+            try self.draw();
 
             // Render the background clear
             _ = c.SDL_RenderClear(self.mRenderer);
 
-            // Iterator for drawing operations
+            //     // Iterator for drawing operations
             var iter = self.mDrawingQueue.getIterator();
             while (iter.next()) |*op| {
                 // Set transparency
@@ -279,10 +319,15 @@ pub const GoWindow = struct {
         }
 
         // Exit point for goto within switch
+        std.debug.print("exiting...\n", .{});
     }
 
     pub fn close(self: *Self) void {
         self.mShouldRun = false;
+    }
+
+    pub inline fn getRenderer(self: Self) *c.SDL_Renderer {
+        return self.mRenderer.?;
     }
 
     pub fn enqueueDraw(
@@ -293,7 +338,12 @@ pub const GoWindow = struct {
         z: f32,
         alpha: u8,
         color: c.SDL_Color,
-    ) void {
+    ) !void {
+        // _ = texture;
+        // _ = destRect;
+        // _ = angle;
+        // _ = alpha;
+        // _ = color;
         // Create the new drawing operation and fill it.
         const op = DrawingQueueOp{
             .mTexture = texture,
@@ -304,7 +354,7 @@ pub const GoWindow = struct {
         };
 
         // Store it in the container, sorted by depth.
-        self.mDrawingQueue.draw(z, op);
+        try self.mDrawingQueue.draw(z, op);
     }
 
     pub fn openGameController(self: *Self) void {
@@ -322,6 +372,21 @@ pub const GoWindow = struct {
             _ = c.SDL_SetWindowFullscreen(self.mWindow.?, c.SDL_WINDOW_FULLSCREEN);
         } else {
             _ = c.SDL_SetWindowFullscreen(self.mWindow.?, 0);
+        }
+    }
+
+    pub fn changeState(self: *Self, newState: []const u8) !void {
+        if (std.mem.eql(u8, newState, self.mCurrentStateStr)) {
+            return;
+        } else if (std.mem.eql(u8, newState, "stateHowtoplay")) {
+            if (howToPlay == null) {
+                howToPlay = try StateHowToPlay.init(self);
+            }
+            const stater = howToPlay.?.stater(self);
+            self.mCurrentState = stater;
+            self.mCurrentStateStr = "stateHowtoPlay";
+        } else {
+            @panic("unknown state, you must add it!!!");
         }
     }
 };

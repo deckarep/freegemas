@@ -40,8 +40,18 @@ pub fn getBasePath() []const u8 {
     if (basePath) |bp| {
         defer c.SDL_free(basePath);
         const res = std.mem.span(bp);
-        @memcpy(basePathStrBuf[0..res.len], res);
-        basePathStr = basePathStrBuf[0..res.len];
+
+        // WARN: Hack for now: removes the "zig-out/bin/" when run with
+        // zig build run
+        var lessCount: usize = 0;
+        const artifactPath = "zig-out/bin/";
+        if (std.mem.endsWith(u8, res, artifactPath)) {
+            lessCount = artifactPath.len;
+        }
+
+        const finalSlice = res[0 .. res.len - lessCount];
+        @memcpy(basePathStrBuf[0..finalSlice.len], finalSlice);
+        basePathStr = basePathStrBuf[0..finalSlice.len];
         return basePathStr.?;
     }
 
