@@ -1,3 +1,4 @@
+const std = @import("std");
 const goWin = @import("go_window.zig");
 const goFont = @import("go_font.zig");
 const goImg = @import("go_image.zig");
@@ -7,7 +8,8 @@ const bb = @import("base_button.zig");
 const c = @import("cdefs.zig").c;
 
 pub const GameIndicators = struct {
-    mGame: *goWin.GoWindow = null,
+    mGame: ?*goWin.GoWindow = null,
+    mStateGame: ?u8 = null,
 
     mScore: i32 = 0,
     mScorePrev: i32 = -1,
@@ -46,50 +48,52 @@ pub const GameIndicators = struct {
         self.mStateGame = sg;
     }
 
-    pub fn loadResources(self: *Self) void {
-        _ = self;
+    pub fn loadResources(self: *Self) !void {
         // Load the font for the timer
-        // mFontTime.setAll(mGame, "media/fuentelcd.ttf", 62);
+        self.mFontTime.setAll(self.mGame, "media/fuentelcd.ttf", 62);
 
-        // // Load the font for the scoreboard
-        // mFontScore.setAll(mGame, "media/fuentelcd.ttf", 33);
+        // Load the font for the scoreboard
+        self.mFontScore.setAll(self.mGame, "media/fuentelcd.ttf", 33);
 
         // // Font to render some headers
-        // GoSDL::Font tempHeaderFont;
-        // tempHeaderFont.setAll(mGame, "media/fuenteNormal.ttf", 37);
+        var tempHeaderFont = goFont.GoFont.init();
+        tempHeaderFont.setAll(self.mGame, "media/fuenteNormal.ttf", 37);
 
-        // mImgScoreHeader = tempHeaderFont.renderTextWithShadow(_("score"), {160, 169, 255, 255}, 1, 1, {0, 0, 0, 128});
+        const headerColor = c.SDL_Color{
+            .r = 160,
+            .g = 169,
+            .b = 255,
+            .a = 255,
+        };
 
-        // mImgTimeHeader = tempHeaderFont.renderTextWithShadow(_("time left"), {160, 169, 255, 255}, 1, 1, {0, 0, 0, 128});
+        const headerShadow = c.SDL_Color{
+            .r = 0,
+            .g = 0,
+            .b = 0,
+            .a = 128,
+        };
 
-        // // Load the background image for the time
-        // mImgTimeBackground.setWindowAndPath(mGame, "media/timeBackground.png");
+        self.mImgScoreHeader = tempHeaderFont.renderTextWithShadow("score", headerColor, 1, 1, headerShadow);
+        self.mImgTimeHeader = tempHeaderFont.renderTextWithShadow("time left", headerColor, 1, 1, headerShadow);
 
-        // // Load the background image for the scoreboard
-        // mImgScoreBackground.setWindowAndPath(mGame, "media/scoreBackground.png");
+        // Load the background image for the time
+        _ = try self.mImgTimeBackground.setWindowAndPath(self.mGame, "media/timeBackground.png");
 
-        // // Buttons
-        // std::string mHintButtonText = _("Show hint");
-        // std::string mResetButtonText = _("Reset game");
-        // std::string mExitButtonText = _("Exit");
+        // Load the background image for the scoreboard
+        _ = try self.mImgScoreBackground.setWindowAndPath(self.mGame, "media/scoreBackground.png");
 
-        // #ifdef __vita__
-        //     mHintButtonText += std::string(" (/\\)");
-        //     mResetButtonText += std::string(" (SEL)");
-        //     mExitButtonText += std::string(" (START)");
-        // #endif
+        // Buttons
+        try self.mHintButton.set(self.mGame, "Show hint", "iconHint.png");
+        try self.mResetButton.set(self.mGame, "Reset game", "iconRestart.png");
+        try self.mExitButton.set(self.mGame, "Exit", "iconExit.png");
 
-        // mHintButton.set(mGame,  mHintButtonText.c_str(), "iconHint.png");
-        // mResetButton.set(mGame, mResetButtonText.c_str(), "iconRestart.png");
-        // mExitButton.set(mGame, mExitButtonText.c_str(), "iconExit.png");
+        // Music
+        self.options.loadResources();
 
-        // // Music
-        // options.loadResources();
-
-        // if (options.getMusicEnabled()) {
-        //     sfxSong.setSample("media/music.ogg");
-        //     sfxSong.play();
-        // }
+        if (self.options.getMusicEnabled()) {
+            self.sfxSong.setSample("media/music.ogg");
+            self.sfxSong.play();
+        }
     }
 
     /// Returns the current score
@@ -111,23 +115,34 @@ pub const GameIndicators = struct {
 
     /// Updates the remaining time, the argument is given in seconds
     pub fn updateTime(self: *Self, time: f64) void {
+        const timeTxtColor = c.SDL_Color{
+            .r = 78,
+            .g = 193,
+            .b = 190,
+            .a = 255,
+        };
+
         self.mRemainingTime = time;
 
-        // TODO: below
-        // Only recreate the tiem string if it's changed
-        // if (mRemainingTime >= 0 && mRemainingTime != mRemainingTimePrevious)
-        // {
-        //     int minutes = int(mRemainingTime / 60);
-        //     int seconds = int(mRemainingTime - minutes * 60);
+        // Only recreate the time string if it's changed
+        if (self.mRemainingTime >= 0 and self.mRemainingTime != self.mRemainingTimePrev) {
+            const minutes: i32 = @floatFromInt(self.mRemainingTime / 60);
+            const seconds: i32 = @floatFromInt(self.mRemainingTime - minutes * 60);
 
-        //     std::string txtTime = std::to_string(minutes) +
-        //         (seconds < 10 ? ":0" : ":") +
-        //         std::to_string(seconds);
+            var buf: [32]u8 = undefined;
+            const txtTime = try std.fmt.bufPrintZ(
+                &buf,
+                "{d}{s}{d}",
+                .{
+                    minutes,
+                    if (seconds < 10) ":0" else ":",
+                    seconds,
+                },
+            );
 
-        //     mImgTime = mFontTime.renderText(txtTime, {78, 193, 190, 255});
-
-        //     mRemainingTimePrevious = mRemainingTime;
-        // }
+            self.mImgTime = self.mFontTime.renderText(txtTime, timeTxtColor);
+            self.mRemainingTimePrev = self.mRemainingTime;
+        }
     }
 
     pub fn disableTime(self: *Self) void {

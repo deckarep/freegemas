@@ -19,14 +19,15 @@ const shadowColor = c.SDL_Color{
 };
 
 pub const BaseButton = struct {
-    mParentWindow: *goWin.GoWindow,
+    mParentWindow: *goWin.GoWindow = undefined,
     mImgBackground: goImg.GoImage,
     mHasIcon: bool = false,
+    // Icon is optional.
     mImgIcon: ?goImg.GoImage,
     mImgCaption: goImg.GoImage,
     mTextHorizontalPos: i32,
-    mLastX: u32,
-    mLastY: u32,
+    mLastX: u32 = 0,
+    mLastY: u32 = 0,
 
     const Self = @This();
 
@@ -81,9 +82,9 @@ pub const BaseButton = struct {
             try self.mImgIcon.draw(x + 7, y, z + 1);
         }
 
-        self.mImgCaption.draw(x + self.mTextHorizontalPosition, y + 5, z + 2);
+        try self.mImgCaption.draw(x + self.mTextHorizontalPosition, y + 5, z + 2);
 
-        self.mImgBackground.draw(x, y, z);
+        try self.mImgBackground.draw(x, y, z);
     }
 
     pub fn clicked(self: Self, mX: u32, mY: 32) bool {
