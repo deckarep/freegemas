@@ -9,6 +9,15 @@ const jga = @import("jewel_group_anim.zig");
 /// Possible states of the transition
 const transitionState = enum { TransitionIn, Active, TransitionOut };
 
+// Menu target states (TODO: move behind const identifiers)
+const menuTargets = &[_][]const u8{
+    "stateGameTimetrial",
+    "stateGameEndless",
+    "stateHowtoplay",
+    "stateOptions",
+    "stateQuit",
+};
+
 const menuTextColor = c.SDL_Color{
     .r = 255,
     .g = 255,
@@ -30,10 +39,6 @@ pub const StateMainMenu = struct {
     mAnimationLogoSteps: i32,
     mAnimationTotalSteps: i32,
     mMenuSelectedOption: usize,
-    // Menu target states (TODO: move behind const identifiers)
-    // mMenuTargets = &.{
-    //     "stateGameTimetrial", "stateGameEndless", "stateHowtoplay", "stateOptions", "stateQuit",
-    // },
 
     mImgBackground: goImg.GoImage,
     mImgLogo: goImg.GoImage,
@@ -45,6 +50,7 @@ pub const StateMainMenu = struct {
     mMenuYEnd: i32,
     mMenuYGap: i32,
 
+    mMenuRenderedTexts: [menuTargets.len]goImg.GoImage = undefined,
     mJewelAnimation: jga.JewewlGroupAnim = jga.JewewlGroupAnim.init(),
 
     const Self = @This();
@@ -87,10 +93,16 @@ pub const StateMainMenu = struct {
         self.mFont.setWindow(self.mGame);
         try self.mFont.setPathAndSize("media/fuenteMenu.ttf", 30);
 
+        // Menu text items
+        self.mMenuRenderedTexts[0] = self.mFont.renderTextWithShadow("Timetrial mode", menuTextColor, 0, 2, menuShadowColor);
+        self.mMenuRenderedTexts[1] = self.mFont.renderTextWithShadow("Endless mode", menuTextColor, 0, 2, menuShadowColor);
+        self.mMenuRenderedTexts[2] = self.mFont.renderTextWithShadow("How to play?", menuTextColor, 0, 2, menuShadowColor);
+        self.mMenuRenderedTexts[3] = self.mFont.renderTextWithShadow("Options", menuTextColor, 0, 2, menuShadowColor);
+        self.mMenuRenderedTexts[4] = self.mFont.renderTextWithShadow("Exit", menuTextColor, 0, 2, menuShadowColor);
+
         // Jewel group animation
         try self.mJewelAnimation.loadResources(self.mGame);
         //self.mMenuYEnd = self.mMenuYStart + (int) self.mMenuTargets.size() * self.mMenuYGap;
-
     }
 
     pub fn update(ptr: *anyopaque) anyerror!void {
@@ -123,20 +135,65 @@ pub const StateMainMenu = struct {
         try self.mImgBackground.draw(0, 0, 1);
 
         // Calculate the alpha value for the logo
+        // TODO: do this fade in later, it's stupid I know.
         //const logoAlpha = std.math.clamp( i32,(int)(255 * (float)self.mAnimationCurrentStep / self.mAnimationLogoSteps),
         //                  0, 255);
 
         // Draw the logo
         try self.mImgLogo.draw(86, 2, 1); //86, 0, 2, 1, 1, 0, logoAlpha);
 
+        // Loop to draw the menu items
+        for (0..menuTargets.len) |i| {
+            // Calculate the horizontal and vertical positions
+            const posX = 800 / 2 - @divTrunc(self.mMenuRenderedTexts[i].getWidth(), 2);
+            const posY = self.mMenuYStart + @as(i32, @intCast(i)) * self.mMenuYGap;
+
+            // Draw the text and the shadow
+            try self.mMenuRenderedTexts[i].draw(posX, posY, 3);
+        }
+
+        // Draw the menu highlighting
+        try self.mImgHighl.draw(
+            266,
+            self.mMenuYStart + 5 + @as(i32, @intCast(self.mMenuSelectedOption)) * self.mMenuYGap,
+            2,
+        );
+
         // Draw the jewel animation
         try self.mJewelAnimation.draw();
     }
 
-    fn buttonDown(ptr: *anyopaque, keyCode: c.SDL_Keycode) anyerror!void {
+    fn buttonDown(ptr: *anyopaque, button: c.SDL_Keycode) anyerror!void {
         const self: *Self = @alignCast(@ptrCast(ptr));
-        _ = keyCode;
-        try self.mGame.changeState("stateMainMenu");
+        switch (button) {
+            c.SDLK_ESCAPE => self.mGame.close(),
+            c.SDLK_DOWN => self.moveDown(),
+            c.SDLK_UP => self.moveUp(),
+            c.SDLK_RETURN, c.SDLK_KP_ENTER, c.SDLK_SPACE => try self.optionChose(),
+            else => {},
+        }
+    }
+
+    fn optionChose(self: *Self) !void {
+        try self.mGame.changeState(menuTargets[self.mMenuSelectedOption]);
+    }
+
+    fn moveUp(self: *Self) void {
+        //self.mGame.getGameSounds().playSoundSelect();
+        if (self.mMenuSelectedOption == 0) {
+            self.mMenuSelectedOption = menuTargets.len - 1;
+        } else {
+            self.mMenuSelectedOption -= 1;
+        }
+    }
+
+    fn moveDown(self: *Self) void {
+        //self.mGame.getGameSounds().playSoundSelect();
+        if (self.mMenuSelectedOption == menuTargets.len - 1) {
+            self.mMenuSelectedOption = 0;
+        } else {
+            self.mMenuSelectedOption += 1;
+        }
     }
 
     fn buttonUp(ptr: *anyopaque, keyCode: c.SDL_Keycode) anyerror!void {
@@ -146,17 +203,17 @@ pub const StateMainMenu = struct {
         // No implementation for this struct.
     }
 
-    fn mouseDown(ptr: *anyopaque, button: u8) anyerror!void {
-        const self: *Self = @alignCast(@ptrCast(ptr));
-        _ = button;
-        try self.mGame.changeState("stateMainMenu");
-    }
-
     fn mouseUp(ptr: *anyopaque, button: u8) anyerror!void {
         const self: *Self = @alignCast(@ptrCast(ptr));
         _ = self;
         _ = button;
         // No implementation for this struct.
+    }
+
+    fn mouseDown(ptr: *anyopaque, button: u8) anyerror!void {
+        const self: *Self = @alignCast(@ptrCast(ptr));
+        _ = button;
+        try self.mGame.changeState("stateMainMenu");
     }
 
     pub fn stater(self: *Self, game: *goWin.GoWindow) st.State {

@@ -32,7 +32,7 @@ pub const JewewlGroupAnim = struct {
         }
 
         self.animationCurrentStep = 0;
-        self.animationTotalSteps = 30;
+        self.animationTotalSteps = 20;
         self.posFinalY = 265;
     }
 
@@ -60,6 +60,7 @@ pub const JewewlGroupAnim = struct {
                     2.0,
                 );
             } else {
+                // TODO: when gem reaches final state, play a progressively pitched "chime" for each one.
                 try self.imgGems[i].draw(self.posX[i], self.posFinalY, 2);
             }
         }
