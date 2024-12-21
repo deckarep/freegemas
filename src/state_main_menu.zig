@@ -179,7 +179,8 @@ pub const StateMainMenu = struct {
     }
 
     fn moveUp(self: *Self) void {
-        //self.mGame.getGameSounds().playSoundSelect();
+        self.mGame.getGameSounds().playSoundSelect();
+
         if (self.mMenuSelectedOption == 0) {
             self.mMenuSelectedOption = menuTargets.len - 1;
         } else {
@@ -188,7 +189,8 @@ pub const StateMainMenu = struct {
     }
 
     fn moveDown(self: *Self) void {
-        //self.mGame.getGameSounds().playSoundSelect();
+        self.mGame.getGameSounds().playSoundSelect();
+
         if (self.mMenuSelectedOption == menuTargets.len - 1) {
             self.mMenuSelectedOption = 0;
         } else {

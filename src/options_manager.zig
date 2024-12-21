@@ -61,19 +61,23 @@ pub const OptionsManager = struct {
         _ = value;
     }
 
-    pub fn getHighscoreTimetrial() i32 {
+    pub fn getHighscoreTimetrial(self: Self) i32 {
+        _ = self;
         return 1e5;
     }
 
-    pub fn getHighscoreEndless() i32 {
+    pub fn getHighscoreEndless(self: Self) i32 {
+        _ = self;
         return 1e5;
     }
 
-    pub fn getMusicEnabled() bool {
+    pub fn getMusicEnabled(self: Self) bool {
+        _ = self;
         return true;
     }
 
-    pub fn getSoundEnabled() bool {
+    pub fn getSoundEnabled(self: Self) bool {
+        _ = self;
         return true;
     }
 

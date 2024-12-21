@@ -7,6 +7,7 @@ const st = @import("state.zig");
 const StateHowToPlay = @import("state_how_to_play.zig").StateHowToPlay;
 const StateMainMenu = @import("state_main_menu.zig").StateMainMenu;
 const goImg = @import("go_image.zig");
+const gs = @import("game_sounds.zig");
 const c = @import("cdefs.zig").c;
 
 // Temporarily public for troubleshooting.
@@ -39,6 +40,9 @@ pub const GoWindow = struct {
 
     /// Main renderer
     mRenderer: ?*c.SDL_Renderer = null,
+
+    // Game Sound controller
+    mGameSounds: gs.GameSounds = gs.GameSounds.init(),
 
     /// Rendering queue
     mDrawingQueue: DrawingQueue,
@@ -112,6 +116,9 @@ pub const GoWindow = struct {
         ) < 0) {
             @panic("failed to init SDL open audio!!");
         }
+
+        // Load Sounds
+        try self.mGameSounds.loadResources();
 
         // Create window
         self.mWindow = c.SDL_CreateWindow(
@@ -354,6 +361,10 @@ pub const GoWindow = struct {
 
     pub inline fn getRenderer(self: Self) *c.SDL_Renderer {
         return self.mRenderer.?;
+    }
+
+    pub inline fn getGameSounds(self: Self) *const gs.GameSounds {
+        return &self.mGameSounds;
     }
 
     pub fn enqueueDraw(

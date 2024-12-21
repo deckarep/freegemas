@@ -6,6 +6,7 @@ pub const GoSound = struct {
     mSample: ?*c.Mix_Chunk = null,
 
     const Self = @This();
+
     pub fn init() Self {
         return Self{};
     }
@@ -22,7 +23,7 @@ pub const GoSound = struct {
         std.debug.print("wav => {s}\n", .{mPath});
         self.mSample = c.Mix_LoadWAV(mPath.ptr);
         if (self.mSample == null) {
-            std.log.err("Failed to load wav with err!", .{});
+            std.log.err("failed to load wav with err!", .{});
         }
     }
 
