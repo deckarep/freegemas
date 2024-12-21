@@ -20,16 +20,6 @@ pub fn main() !void {
         );
         defer w.deinit();
         try w.setup();
-
-        std.debug.print("MAIN: &w addr => {*}, mGame => {*}\n", .{ &w, goWin.howToPlay.?.mGame });
-        std.debug.assert(goWin.howToPlay.?.mGame == &w);
-        std.debug.assert(w.mDrawingQueue.queue.items.len == 0);
-        std.debug.print("MAIN: win addr => {*}\n", .{&w});
-        std.debug.print("MAIN:priority queue addr: {*}\n", .{&w.mDrawingQueue.queue});
-        // Hack to fix the priority queue, force re-initialization.
-        // NOTE: did not work!
-        //w.mDrawingQueue.queue = std.PriorityQueue(dq.DrawingQueueOp, void, dq.lessThan).init(alloc, {});
-        //std.debug.print("priority queue hack init done\n", .{});
         try w.show();
     }
 

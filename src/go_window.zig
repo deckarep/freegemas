@@ -54,7 +54,7 @@ pub const GoWindow = struct {
     mCurrentState: ?st.State = null,
     mCurrentStateStr: []const u8 = "<none>",
 
-    mMouseCursor: goImg.GoImage = undefined,
+    mMouseCursor: goImg.GoImage = goImg.GoImage.init(),
 
     mCaption: [:0]const u8 = undefined,
 
@@ -164,12 +164,11 @@ pub const GoWindow = struct {
 
         // Since we're not creating a Game class for Zig.
         // The "Game" constructor logic is here below.
-        self.mMouseCursor = goImg.GoImage.init();
         self.mMouseCursor.setWindow(self);
         try self.mMouseCursor.setPath("media/handCursor.png");
 
         // TODO: main menu for starters.
-        try self.changeState("stateHowtoplay");
+        try self.changeState("stateMainMenu");
     }
 
     pub fn deinit(self: *Self) void {
@@ -198,6 +197,10 @@ pub const GoWindow = struct {
     }
 
     pub fn draw(self: *Self) !void {
+        if (self.getMouseActive()) {
+            try self.mMouseCursor.draw(self.getMouseX(), self.getMouseY(), 999);
+        }
+
         if (self.mCurrentState) |cs| {
             try cs.draw();
         }
@@ -412,11 +415,15 @@ pub const GoWindow = struct {
         }
     }
 
-    pub fn getMouseActive(self: Self) bool {
+    pub inline fn getMouseActive(self: Self) bool {
         return self.mMouseActive;
     }
 
-    pub fn getMouseY(self: Self) i32 {
+    pub inline fn getMouseX(self: Self) i32 {
+        return self.mMouseX;
+    }
+
+    pub inline fn getMouseY(self: Self) i32 {
         return self.mMouseY;
     }
 
