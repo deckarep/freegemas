@@ -412,6 +412,14 @@ pub const GoWindow = struct {
     pub fn changeState(self: *Self, newState: []const u8) !void {
         if (std.mem.eql(u8, newState, self.mCurrentStateStr)) {
             return;
+        } else if (std.mem.eql(u8, newState, "stateQuit")) {
+            self.close();
+        } else if (std.mem.eql(u8, newState, "stateGameEndless")) {
+            std.debug.print("TODO: stateGameEndless...\n", .{});
+        } else if (std.mem.eql(u8, newState, "stateGameTimetrial")) {
+            std.debug.print("TODO: stateGameTimetrial...\n", .{});
+        } else if (std.mem.eql(u8, newState, "stateOptions")) {
+            std.debug.print("TODO: stateOptions...\n", .{});
         } else if (std.mem.eql(u8, newState, "stateHowtoplay")) {
             if (howToPlay == null) {
                 howToPlay = try StateHowToPlay.init(self);
