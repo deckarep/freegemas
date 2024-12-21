@@ -37,11 +37,11 @@ pub const State = struct {
     }
 
     pub fn mouseButtonDown(self: State, button: u8) !void {
-        return self.buttonDownFn(self.ptr, button);
+        return self.mouseDownFn(self.ptr, button);
     }
 
     pub fn mouseButtonUp(self: State, button: u8) !void {
-        return self.buttonUpFn(self.ptr, button);
+        return self.mouseUpFn(self.ptr, button);
     }
 
     // todo: controllerButtonDown belongs here too.

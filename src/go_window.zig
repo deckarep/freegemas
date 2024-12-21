@@ -198,7 +198,11 @@ pub const GoWindow = struct {
 
     pub fn draw(self: *Self) !void {
         if (self.getMouseActive()) {
-            try self.mMouseCursor.draw(self.getMouseX(), self.getMouseY(), 999);
+            try self.mMouseCursor.draw(
+                self.getMouseX(),
+                self.getMouseY(),
+                999,
+            );
         }
 
         if (self.mCurrentState) |cs| {
@@ -220,6 +224,7 @@ pub const GoWindow = struct {
 
     fn mouseButtonDown(self: *Self, button: u8) !void {
         if (self.mCurrentState) |cs| {
+            std.debug.print("mouseButtonDown dispatcher\n", .{});
             try cs.mouseButtonDown(button);
         }
     }
@@ -283,6 +288,7 @@ pub const GoWindow = struct {
 
                     c.SDL_MOUSEBUTTONDOWN => {
                         self.mMouseActive = true;
+                        std.debug.print("window::mousebuttondown\n", .{});
                         try self.mouseButtonDown(e.button.button);
                     },
 

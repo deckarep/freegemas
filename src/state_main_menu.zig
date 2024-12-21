@@ -102,7 +102,7 @@ pub const StateMainMenu = struct {
 
         // Jewel group animation
         try self.mJewelAnimation.loadResources(self.mGame);
-        //self.mMenuYEnd = self.mMenuYStart + (int) self.mMenuTargets.size() * self.mMenuYGap;
+        self.mMenuYEnd = self.mMenuYStart + @as(i32, @intCast(menuTargets.len)) * self.mMenuYGap;
     }
 
     pub fn update(ptr: *anyopaque) anyerror!void {
@@ -122,7 +122,7 @@ pub const StateMainMenu = struct {
 
         if (self.mGame.getMouseActive()) {
             // Update menu highlighting according to mouse position
-            const mY: i32 = self.mGame.getMouseY();
+            const mY = self.mGame.getMouseY();
 
             if (mY >= self.mMenuYStart and mY < self.mMenuYEnd) {
                 self.mMenuSelectedOption = @intCast(@divTrunc((mY - self.mMenuYStart), self.mMenuYGap));
@@ -214,8 +214,17 @@ pub const StateMainMenu = struct {
 
     fn mouseDown(ptr: *anyopaque, button: u8) anyerror!void {
         const self: *Self = @alignCast(@ptrCast(ptr));
-        _ = button;
-        try self.mGame.changeState("stateMainMenu");
+
+        std.debug.print("stateMainMenu::mouseDown\n", .{});
+        if (button == c.SDL_BUTTON_LEFT) {
+
+            // Get mouse vertical position
+            const mY = self.mGame.getMouseY();
+
+            if (mY >= self.mMenuYStart and mY <= self.mMenuYEnd) {
+                try self.optionChose();
+            }
+        }
     }
 
     pub fn stater(self: *Self, game: *goWin.GoWindow) st.State {
