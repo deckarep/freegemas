@@ -4,6 +4,7 @@ const goFont = @import("go_font.zig");
 const st = @import("state.zig");
 const std = @import("std");
 const c = @import("cdefs.zig").c;
+const jga = @import("jewel_group_anim.zig");
 
 /// Possible states of the transition
 const transitionState = enum { TransitionIn, Active, TransitionOut };
@@ -43,6 +44,8 @@ pub const StateMainMenu = struct {
     mMenuYStart: i32,
     mMenuYEnd: i32,
     mMenuYGap: i32,
+
+    mJewelAnimation: jga.JewewlGroupAnim = jga.JewewlGroupAnim.init(),
 
     const Self = @This();
 
@@ -85,6 +88,7 @@ pub const StateMainMenu = struct {
         try self.mFont.setPathAndSize("media/fuenteMenu.ttf", 30);
 
         // Jewel group animation
+        try self.mJewelAnimation.loadResources(self.mGame);
         //self.mMenuYEnd = self.mMenuYStart + (int) self.mMenuTargets.size() * self.mMenuYGap;
 
     }
@@ -124,6 +128,9 @@ pub const StateMainMenu = struct {
 
         // Draw the logo
         try self.mImgLogo.draw(86, 2, 1); //86, 0, 2, 1, 1, 0, logoAlpha);
+
+        // Draw the jewel animation
+        try self.mJewelAnimation.draw();
     }
 
     fn buttonDown(ptr: *anyopaque, keyCode: c.SDL_Keycode) anyerror!void {
