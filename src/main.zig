@@ -31,6 +31,10 @@ pub fn main() !void {
         try doAdds(q);
         std.debug.print("finished...\n", .{});
     }
+
+    if (true) {
+        try testMatches();
+    }
 }
 
 pub fn doAdds(q: dq.DrawingQueue) !void {
@@ -48,5 +52,25 @@ pub fn doAdds(q: dq.DrawingQueue) !void {
             // .mTexture = undefined,
             // .mAngle = 0.0,
         });
+    }
+}
+
+fn testMatches() !void {
+    const mch = @import("match.zig");
+    const co = @import("coord.zig");
+    //const mm = @import("muli_match.zig");
+    {
+        var singleMatch = mch.Match.init(alloc);
+        singleMatch.deinit();
+        try singleMatch.pushBack(co.Coord{ .x = 1, .y = 2 });
+        try singleMatch.pushBack(co.Coord{ .x = 11, .y = 22 });
+        try singleMatch.pushBack(co.Coord{ .x = 111, .y = 222 });
+
+        std.debug.print("midSquare => {?}\n", .{singleMatch.midSquare()});
+
+        std.debug.print(
+            "found? => {s}\n ",
+            .{if (singleMatch.match(co.Coord{ .x = 121, .y = 22 })) "yes" else "no"},
+        );
     }
 }

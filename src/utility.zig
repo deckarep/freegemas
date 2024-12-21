@@ -99,3 +99,9 @@ pub fn getRandomInt(min: i32, max: i32) !i32 {
     const res = r.int(i32);
     return @mod(res, (max - min + 1)) + min;
 }
+
+/// Returns a random i32 int from the full range.
+pub fn getRandomIntValue() !i32 {
+    const r = try getRandom();
+    return r.int(i32);
+}
