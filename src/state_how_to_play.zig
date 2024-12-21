@@ -5,6 +5,20 @@ const st = @import("state.zig");
 const std = @import("std");
 const c = @import("cdefs.zig").c;
 
+const fontColor = c.SDL_Color{
+    .r = 255,
+    .g = 255,
+    .b = 255,
+    .a = 255,
+};
+
+const fontShadowColor = c.SDL_Color{
+    .r = 0,
+    .g = 0,
+    .b = 0,
+    .a = 128,
+};
+
 pub const StateHowToPlay = struct {
     mGame: *goWin.GoWindow = undefined,
 
@@ -33,10 +47,10 @@ pub const StateHowToPlay = struct {
 
         o.mImgTitle = fontTitle.renderTextWithShadow(
             "How to play",
-            c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
+            fontColor,
             1,
             2,
-            c.SDL_Color{ .r = 0, .g = 0, .b = 0, .a = 128 },
+            fontShadowColor,
         );
 
         // Build the subtitle text
@@ -47,10 +61,10 @@ pub const StateHowToPlay = struct {
         const subtitleText = "Press any button to go back";
         o.mImgSubtitle = fontSubtitle.renderTextWithShadow(
             subtitleText,
-            c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
+            fontColor,
             1,
             2,
-            c.SDL_Color{ .r = 0, .g = 0, .b = 0, .a = 128 },
+            fontShadowColor,
         );
 
         // Build the main text
@@ -67,14 +81,19 @@ pub const StateHowToPlay = struct {
         ;
         o.mImgBodyText = fontText.renderBlockWithShadow(
             bodyText,
-            c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
+            fontColor,
             450,
             1,
             2,
-            c.SDL_Color{ .r = 0, .g = 0, .b = 0, .a = 128 },
+            fontShadowColor,
         );
 
         return o;
+    }
+
+    pub fn setup(ptr: *anyopaque) anyerror!void {
+        _ = ptr;
+        // TODO: move the setup code in init to here!!!!
     }
 
     pub fn update(ptr: *anyopaque) anyerror!void {
@@ -121,6 +140,7 @@ pub const StateHowToPlay = struct {
         return st.State{
             .ptr = self,
             //.mGame = game,
+            .setupFn = setup,
             .updateFn = update,
             .drawFn = draw,
             .buttonDownFn = buttonDown,

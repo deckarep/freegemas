@@ -5,6 +5,8 @@ const c = @import("cdefs.zig").c;
 pub const State = struct {
     ptr: *anyopaque,
 
+    setupFn: *const fn (ptr: *anyopaque) anyerror!void,
+
     updateFn: *const fn (ptr: *anyopaque) anyerror!void,
     drawFn: *const fn (ptr: *anyopaque) anyerror!void,
 
@@ -13,6 +15,10 @@ pub const State = struct {
 
     mouseDownFn: *const fn (ptr: *anyopaque, button: u8) anyerror!void,
     mouseUpFn: *const fn (ptr: *anyopaque, button: u8) anyerror!void,
+
+    pub fn setup(self: State) !void {
+        return self.setupFn(self.ptr);
+    }
 
     pub fn update(self: State) !void {
         return self.updateFn(self.ptr);

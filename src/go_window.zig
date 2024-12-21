@@ -5,11 +5,13 @@ const DrawingQueue = @import("go_drawingqueue.zig").DrawingQueue;
 const optsMan = @import("options_manager.zig");
 const st = @import("state.zig");
 const StateHowToPlay = @import("state_how_to_play.zig").StateHowToPlay;
+const StateMainMenu = @import("state_main_menu.zig").StateMainMenu;
 const goImg = @import("go_image.zig");
 const c = @import("cdefs.zig").c;
 
 // Temporarily public for troubleshooting.
 pub var howToPlay: ?StateHowToPlay = null;
+pub var mainMenu: ?StateMainMenu = null;
 
 pub const GoWindow = struct {
     /// Running flag
@@ -194,6 +196,30 @@ pub const GoWindow = struct {
         }
     }
 
+    fn buttonDown(self: *Self, button: c.SDL_Keycode) !void {
+        if (self.mCurrentState) |cs| {
+            try cs.buttonDown(button);
+        }
+    }
+
+    fn buttonUp(self: *Self, button: c.SDL_Keycode) !void {
+        if (self.mCurrentState) |cs| {
+            try cs.buttonUp(button);
+        }
+    }
+
+    fn mouseButtonDown(self: *Self, button: u8) !void {
+        if (self.mCurrentState) |cs| {
+            try cs.mouseButtonDown(button);
+        }
+    }
+
+    fn mouseButtonUp(self: *Self, button: u8) !void {
+        if (self.mCurrentState) |cs| {
+            try cs.mouseButtonUp(button);
+        }
+    }
+
     pub fn show(self: *Self) !void {
         std.debug.print("show\n", .{});
         // To store the ticks passed between frames
@@ -232,11 +258,11 @@ pub const GoWindow = struct {
 
                     c.SDL_KEYDOWN => {
                         self.mMouseActive = false;
-                        //self.buttonDown(e.key.keysym.sym);
+                        try self.buttonDown(e.key.keysym.sym);
                     },
 
                     c.SDL_KEYUP => {
-                        //self.buttonUp(e.key.keysym.sym);
+                        try self.buttonUp(e.key.keysym.sym);
                     },
 
                     c.SDL_MOUSEMOTION => {
@@ -247,11 +273,11 @@ pub const GoWindow = struct {
 
                     c.SDL_MOUSEBUTTONDOWN => {
                         self.mMouseActive = true;
-                        // self.mouseButtonDown(e.button.button);
+                        try self.mouseButtonDown(e.button.button);
                     },
 
                     c.SDL_MOUSEBUTTONUP => {
-                        //self.mouseButtonUp(e.button.button);
+                        try self.mouseButtonUp(e.button.button);
                     },
 
                     c.SDL_CONTROLLERBUTTONDOWN => {
@@ -375,6 +401,14 @@ pub const GoWindow = struct {
         }
     }
 
+    pub fn getMouseActive(self: Self) bool {
+        return self.mMouseActive;
+    }
+
+    pub fn getMouseY(self: Self) i32 {
+        return self.mMouseY;
+    }
+
     pub fn changeState(self: *Self, newState: []const u8) !void {
         if (std.mem.eql(u8, newState, self.mCurrentStateStr)) {
             return;
@@ -383,8 +417,18 @@ pub const GoWindow = struct {
                 howToPlay = try StateHowToPlay.init(self);
             }
             const stater = howToPlay.?.stater(self);
+            // TODO: try stater.setup();
             self.mCurrentState = stater;
             self.mCurrentStateStr = "stateHowtoPlay";
+        } else if (std.mem.eql(u8, newState, "stateMainMenu")) {
+            if (mainMenu == null) {
+                const mm = try StateMainMenu.init(self);
+                mainMenu = mm;
+            }
+            const stater = mainMenu.?.stater(self);
+            try stater.setup();
+            self.mCurrentState = stater;
+            self.mCurrentStateStr = "stateMainMenu";
         } else {
             @panic("unknown state, you must add it!!!");
         }
