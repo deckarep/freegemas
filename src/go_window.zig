@@ -224,7 +224,6 @@ pub const GoWindow = struct {
 
     fn mouseButtonDown(self: *Self, button: u8) !void {
         if (self.mCurrentState) |cs| {
-            std.debug.print("mouseButtonDown dispatcher\n", .{});
             try cs.mouseButtonDown(button);
         }
     }
@@ -288,7 +287,6 @@ pub const GoWindow = struct {
 
                     c.SDL_MOUSEBUTTONDOWN => {
                         self.mMouseActive = true;
-                        std.debug.print("window::mousebuttondown\n", .{});
                         try self.mouseButtonDown(e.button.button);
                     },
 
@@ -385,11 +383,6 @@ pub const GoWindow = struct {
         alpha: u8,
         color: c.SDL_Color,
     ) !void {
-        // _ = texture;
-        // _ = destRect;
-        // _ = angle;
-        // _ = alpha;
-        // _ = color;
         // Create the new drawing operation and fill it.
         const op = DrawingQueueOp{
             .mTexture = texture,

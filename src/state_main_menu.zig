@@ -215,7 +215,6 @@ pub const StateMainMenu = struct {
     fn mouseDown(ptr: *anyopaque, button: u8) anyerror!void {
         const self: *Self = @alignCast(@ptrCast(ptr));
 
-        std.debug.print("stateMainMenu::mouseDown\n", .{});
         if (button == c.SDL_BUTTON_LEFT) {
 
             // Get mouse vertical position
