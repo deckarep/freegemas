@@ -3,6 +3,7 @@ const Coord = @import("coord.zig").Coord;
 
 const CoordList = std.ArrayList(Coord);
 
+/// A group of matched squares.
 pub const Match = struct {
     // In the original code, Match inherits from Vector<Coord>
     // In this code, I favor composition with an ArrayList
@@ -21,10 +22,13 @@ pub const Match = struct {
         self.super.deinit();
     }
 
+    /// pushBack method was added to keep the code looking similar to
+    /// the original code as possible.
     pub fn pushBack(self: *Self, c: Coord) !void {
         try self.super.append(c);
     }
 
+    /// Returns the the most middle item.
     pub fn midSquare(self: Self) Coord {
         const half: usize = self.super.items.len >> 1;
         return self.super.items[half];
@@ -36,7 +40,7 @@ pub const Match = struct {
     ///
     /// @return true if c was found among the coords in the group.
     ///
-    pub fn match(self: Self, c: Coord) bool {
+    pub fn matched(self: Self, c: Coord) bool {
         for (self.super.items) |*coord| {
             if (c.eqls(coord.*)) {
                 return true;

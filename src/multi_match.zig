@@ -1,8 +1,9 @@
 const std = @import("std");
 const mch = @import("match.zig");
-const MatchList = std.ArrayList(mch.Match);
+const MatchList = std.ArrayList(*mch.Match);
 const Coord = @import("coord.zig").Coord;
 
+/// Group of multiple matches.
 pub const MultiMatch = struct {
     // In the original code, MultiMatch inherits from Vector<Match>
     // In this code, I favor composition with an ArrayList
@@ -25,6 +26,12 @@ pub const MultiMatch = struct {
         }
     }
 
+    /// pushBack method was added to keep the code looking similar to
+    /// the original code as possible.
+    pub fn pushBack(self: *Self, m: *mch.Match) !void {
+        try self.super.append(m);
+    }
+
     /// Checks if the given coordinate is matched in any of the matched groups.
     ///
     /// @param c The coordinates to look for.
@@ -32,8 +39,8 @@ pub const MultiMatch = struct {
     /// @return true if c was found in any of the matches
     ///
     pub fn matched(self: Self, c: Coord) bool {
-        for (self.super.items) |*m| {
-            if (m.match(c)) {
+        for (self.super.items) |m| {
+            if (m.matched(c)) {
                 return true;
             }
         }
