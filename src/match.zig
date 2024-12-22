@@ -28,6 +28,12 @@ pub const Match = struct {
         try self.super.append(c);
     }
 
+    /// size method was named to keep the code looking similar to
+    /// the original code as possible.
+    pub fn size(self: Self) usize {
+        return self.super.items.len;
+    }
+
     /// Returns the the most middle item.
     pub fn midSquare(self: Self) Coord {
         const half: usize = self.super.items.len >> 1;

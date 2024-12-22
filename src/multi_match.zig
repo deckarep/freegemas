@@ -28,8 +28,20 @@ pub const MultiMatch = struct {
 
     /// pushBack method was added to keep the code looking similar to
     /// the original code as possible.
-    pub fn pushBack(self: *Self, m: *const mch.Match) !void {
+    pub inline fn pushBack(self: *Self, m: *const mch.Match) !void {
         try self.super.append(m);
+    }
+
+    /// size method was named to keep the code looking similar to
+    /// the original code as possible.
+    pub inline fn size(self: Self) usize {
+        return self.super.items.len;
+    }
+
+    /// empty method was named like so to keep the code looking similar
+    /// to the original code as possible.
+    pub inline fn empty(self: Self) bool {
+        return self.super.items.len == 0;
     }
 
     /// Checks if the given coordinate is matched in any of the matched groups.
