@@ -1,6 +1,6 @@
 const std = @import("std");
 const mch = @import("match.zig");
-const MatchList = std.ArrayList(*mch.Match);
+const MatchList = std.ArrayList(*const mch.Match);
 const Coord = @import("coord.zig").Coord;
 
 /// Group of multiple matches.
@@ -28,7 +28,7 @@ pub const MultiMatch = struct {
 
     /// pushBack method was added to keep the code looking similar to
     /// the original code as possible.
-    pub fn pushBack(self: *Self, m: *mch.Match) !void {
+    pub fn pushBack(self: *Self, m: *const mch.Match) !void {
         try self.super.append(m);
     }
 
