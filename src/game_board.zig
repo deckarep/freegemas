@@ -5,6 +5,7 @@ const brd = @import("board.zig");
 const goImg = @import("go_image.zig");
 const goWin = @import("go_window.zig");
 const c = @import("cdefs.zig").c;
+const fs = @import("floating_score.zig");
 
 pub const tState = enum {
     eNoBoard,
@@ -74,6 +75,7 @@ pub const GameBoard = struct {
 
     /// Group of floating scores. There may be some at the same time.
     //vector<FloatingScore> mFloatingScores;
+    mFloatingScores: std.ArrayList(fs.FloatingScore) = undefined,
 
     /// Group of particle systems
     //vector<ParticleSystem> mParticleSet;
@@ -93,6 +95,7 @@ pub const GameBoard = struct {
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
+            .mFloatingScores = std.ArrayList(fs.FloatingScore).init(allocator),
         };
     }
 
@@ -101,6 +104,9 @@ pub const GameBoard = struct {
             gs.deinit();
             self.mGroupedSquares = null;
         }
+
+        self.mFloatingScores.deinit();
+        // TODO: self.mParticleSet.deinit();
     }
 
     // Public below
@@ -179,7 +185,213 @@ pub const GameBoard = struct {
     }
 
     pub fn update(self: *Self) void {
-        // TODO
+        // Default state, do nothing
+        if (self.mState == .eSteady) {
+            self.mMultiplier = 0;
+            self.mAnimationCurrentStep = 0;
+        }
+
+        // Board appearing, gems are falling
+        else if (self.mState == .eBoardAppearing) {
+            // Update the animation frame
+            self.mAnimationCurrentStep += 1;
+
+            // If the Animation.has finished, switch to steady state
+            if (self.mAnimationCurrentStep == self.mAnimationLongTotalSteps) {
+                self.mState = .eSteady;
+            }
+        }
+
+        // Two winning gems are switching places
+        else if (self.mState == .eGemSwitching) {
+            // Update the animation frame
+            self.mAnimationCurrentStep += 1;
+
+            // If the Animation.has finished, matching gems should disappear
+            if (self.mAnimationCurrentStep == self.mAnimationShortTotalSteps) {
+                // Winning games should disappear
+                self.mState = .eGemDisappearing;
+
+                // Reset the animation
+                self.mAnimationCurrentStep = 0;
+
+                // Swap the gems in the board
+                self.mBoard.swap(
+                    self.mSelectedSquareFirst.x,
+                    self.mSelectedSquareFirst.y,
+                    self.mSelectedSquareSecond.x,
+                    self.mSelectedSquareSecond.y,
+                );
+
+                // Increase the mMultiplier
+                self.mMultiplier += 1;
+
+                // Play matching sound
+                self.playMatchSound();
+
+                // Create floating scores for the matching group
+                self.createFloatingScores();
+            }
+        }
+
+        // Matched gems are disappearing
+        else if (self.mState == .eGemDisappearing) {
+            // Update the animation frame
+            self.mAnimationCurrentStep += 1;
+
+            // If the Animation.has finished
+            if (self.mAnimationCurrentStep == self.mAnimationShortTotalSteps) {
+                // Empty spaces should be filled with new gems
+                self.mState = .eBoardFilling;
+
+                // Delete the squares that were matched in the board
+                if (self.mGroupedSquares) |gs| {
+                    for (gs.super.items, 0..) |*m, i| {
+                        for (m.super.items, 0..) |_, j| {
+                            const crd = gs.at(i, j);
+                            self.mBoard.del(crd.x, crd.y);
+                        }
+                    }
+
+                    // r.c. - not in the original code, but once we've called mBoard.del
+                    // we should be able to also .deinit self.mGroupedSquares
+                    // because they're no longer needed or referenced.
+                    self.mGroupedSquares.?.deinit();
+                    self.mGroupedSquares = null;
+                }
+
+                // Calculate fall movements
+                self.mBoard.calcFallMovements();
+
+                // Reset the animation
+                self.mAnimationCurrentStep = 0;
+            }
+        }
+
+        // New gems are falling to their proper places
+        else if (self.mState == .eBoardFilling) {
+            // Update the animation frame
+            self.mAnimationCurrentStep += 1;
+
+            // If the Animation.has finished
+            if (self.mAnimationCurrentStep == self.mAnimationShortTotalSteps) {
+                // Play the fall sound
+                self.mGame.getGameSounds().playSoundFall();
+
+                // Switch to the normal state
+                self.mState = .eSteady;
+
+                // Allow getting points again if a hint was used
+                self.mHintUsed = false;
+
+                // Reset the animation
+                self.mAnimationCurrentStep = 0;
+
+                // Reset animations in the board
+                self.mBoard.endAnimations();
+
+                // Check if there are matching groups
+                if (self.mGroupedSquares) |_| {
+                    // Ensure deallocation of previously allocated.
+                    self.mGroupedSquares.?.deinit();
+                }
+                self.mGroupedSquares = try self.mBoard.check();
+
+                // If there are...
+                if (!self.mGroupedSquares.empty()) {
+                    // Increase the score mMultiplier
+                    self.mMultiplier += 1;
+
+                    // Create the floating scores
+                    // TODO: self.createFloatingScores();
+
+                    // Play matching sound
+                    self.playMatchSound();
+
+                    // Go back to the gems-fading mState
+                    self.mState = .eGemDisappearing;
+                }
+
+                // If there are neither current solutions nor possible future solutions
+                // Note: converted else if => else with nested if check because
+                // I must ensure sols is reclaimed.
+                else {
+                    const sols = try self.mBoard.solutions();
+                    defer sols.deinit();
+                    if (sols.empty()) {
+                        if (std.mem.eql(u8, self.mGame.getCurrentState(), "stateGameEndless")) {
+                            self.endGame(self.mStateGame.getScore());
+                        } else {
+                            // Make the board disappear
+                            self.mState = .eBoardDisappearing;
+
+                            // Make all the gems want to go outside the board
+                            self.mBoard.dropAllGems();
+                        }
+                    }
+                }
+            }
+        }
+
+        // The entire board is disappearing to show a new one
+        else if (self.mState == .eBoardDisappearing) {
+            // Update the animation frame
+            self.mAnimationCurrentStep += 1;
+
+            // If the Animation.has finished
+            if (self.mAnimationCurrentStep == self.mAnimationLongTotalSteps) {
+                // Reset animation counter
+                self.mAnimationCurrentStep = 0;
+
+                // Generate a brand new board
+                self.mBoard.generate();
+
+                // Switch state
+                self.mState = .eBoardAppearing;
+            }
+        }
+
+        // The board is disappearing because the time has run out
+        else if (self.mState == .eTimeFinished) {
+            // Update the animation frame
+            self.mAnimationCurrentStep += 1;
+
+            // If the Animation.has finished
+            if (self.mAnimationCurrentStep == self.mAnimationLongTotalSteps) {
+                // Reset animation counter
+                self.mAnimationCurrentStep = 0;
+
+                // Switch state
+                self.mState = .eShowingScoreTable;
+            }
+        }
+
+        // Remove the hidden floating score
+        // NOTE: First iteration, is to capture what needed to be removed.
+        // Second iteration is to actually do the removal.
+        // I use this technique because iteration + mutation will invalidate pointers.
+        var floaterIndicesBuf: [10]usize = undefined;
+        var floatIdx: usize = 0;
+        for (self.mFloatingScores.items, 0..) |*floater, idx| {
+            if (floater.ended()) {
+                floaterIndicesBuf[floatIdx] = idx;
+                floatIdx += 1;
+            }
+        }
+        for (0..floatIdx) |idx| {
+            // swapRemove is known as a "swap and pop" which means
+            // if order doesn't matter a swap occurs with the last item.
+            // Then the last item is popped. This technique avoids having
+            // to shift and copy shit around.
+            _ = self.mFloatingScores.swapRemove(idx);
+        }
+
+        // TODO: Remove the hiden particle systems
+        // mParticleSet.erase(
+        //     remove_if (mParticleSet.begin(),
+        //             mParticleSet.end(),
+        //             std::bind<bool>(&ParticleSystem::ended, _1)),
+        //     mParticleSet.end());
     }
 
     pub fn draw(self: *Self) void {
@@ -350,8 +562,43 @@ pub const GameBoard = struct {
         }
     }
 
-    // /// Creates a small label that indicates the points generated by a match
-    // void createFloatingScores();
+    /// Creates a small label that indicates the points generated by a match
+    fn createFloatingScores(self: *Self) !void {
+        // Do not grant points if a hint was used
+        var pointsPerGem: i32 = 5;
+        if (self.mHintUsed) {
+            pointsPerGem = 0;
+        }
+
+        // For each match in the group of matched squares
+        if (self.mGroupedSquares) |gs| {
+            for (gs.super.items) |*m| {
+                const score = m.size() * pointsPerGem * self.mMultiplier;
+
+                // Create a new floating score image
+                try self.mFloatingScores.append(try fs.FloatingScore.init(
+                    self.mGame,
+                    score,
+                    m.midSquare().x.?,
+                    m.midSquare().y.?,
+                    80,
+                ));
+
+                // TODO particles soon.
+                // Create a new particle system for it to appear over the square
+                // for(size_t i = 0, s = m.size(); i < s; ++i)
+                // {
+                //     mParticleSet.emplace_back(ParticleSystem(&mImgParticle1, &mImgParticle2,
+                //         50, 50,
+                //         241 + m[i].x * 65 + 32,
+                //         41 + m[i].y * 65 + 32, 60, 0.5));
+
+                // }
+
+                self.mStateGame.increaseScore(score);
+            }
+        }
+    }
 
     // /// Plays the proper match sound depending on the current multiplier
     fn playMatchSound(self: Self) void {

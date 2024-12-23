@@ -44,6 +44,12 @@ pub const MultiMatch = struct {
         return self.super.items.len == 0;
     }
 
+    pub inline fn at(self: Self, i: usize, j: usize) Coord {
+        const singleMatch = &self.super.items[i];
+        const singleCoord = singleMatch.super.items[j];
+        return singleCoord;
+    }
+
     /// Checks if the given coordinate is matched in any of the matched groups.
     ///
     /// @param c The coordinates to look for.
