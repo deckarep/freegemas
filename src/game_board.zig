@@ -6,6 +6,8 @@ const goImg = @import("go_image.zig");
 const goWin = @import("go_window.zig");
 const c = @import("cdefs.zig").c;
 const fs = @import("floating_score.zig");
+const easings = @import("easings.zig");
+const gh = @import("game_hint.zig");
 
 pub const tState = enum {
     eNoBoard,
@@ -44,7 +46,7 @@ pub const GameBoard = struct {
     mBoard: brd.Board = undefined,
 
     /// Hint
-    //GameHint mHint;
+    mHint: gh.GameHint,
 
     /// Imágenes de las partículas
     mImgParticle1: goImg.GoImage,
@@ -74,7 +76,6 @@ pub const GameBoard = struct {
     mMultiplier: i32 = 1,
 
     /// Group of floating scores. There may be some at the same time.
-    //vector<FloatingScore> mFloatingScores;
     mFloatingScores: std.ArrayList(fs.FloatingScore) = undefined,
 
     /// Group of particle systems
@@ -161,24 +162,24 @@ pub const GameBoard = struct {
         //scoreTable = std::make_shared<ScoreTable>(mGame, score, mGame->getCurrentState());
     }
 
-    pub fn loadResources(self: *Self) void {
-        self.mImgWhite.setWindowAndPath(self.mGame, "media/gemWhite.png");
-        self.mImgRed.setWindowAndPath(self.mGame, "media/gemRed.png");
-        self.mImgPurple.setWindowAndPath(self.mGame, "media/gemPurple.png");
-        self.mImgOrange.setWindowAndPath(self.mGame, "media/gemOrange.png");
-        self.mImgGreen.setWindowAndPath(self.mGame, "media/gemGreen.png");
-        self.mImgYellow.setWindowAndPath(self.mGame, "media/gemYellow.png");
-        self.mImgBlue.setWindowAndPath(self.mGame, "media/gemBlue.png");
+    pub fn loadResources(self: *Self) !void {
+        _ = try self.mImgWhite.setWindowAndPath(self.mGame, "media/gemWhite.png");
+        _ = try self.mImgRed.setWindowAndPath(self.mGame, "media/gemRed.png");
+        _ = try self.mImgPurple.setWindowAndPath(self.mGame, "media/gemPurple.png");
+        _ = try self.mImgOrange.setWindowAndPath(self.mGame, "media/gemOrange.png");
+        _ = try self.mImgGreen.setWindowAndPath(self.mGame, "media/gemGreen.png");
+        _ = try self.mImgYellow.setWindowAndPath(self.mGame, "media/gemYellow.png");
+        _ = try self.mImgBlue.setWindowAndPath(self.mGame, "media/gemBlue.png");
 
         // Load the image for the square selector
-        self.mImgSelector.setWindowAndPath(self.mGame, "media/selector.png");
+        _ = try self.mImgSelector.setWindowAndPath(self.mGame, "media/selector.png");
 
         // Load the images for the particles
-        self.mImgParticle1.setWindowAndPath(self.mGame, "media/partc1.png");
-        self.mImgParticle2.setWindowAndPath(self.mGame, "media/partc2.png");
+        _ = try self.mImgParticle1.setWindowAndPath(self.mGame, "media/partc1.png");
+        _ = try self.mImgParticle2.setWindowAndPath(self.mGame, "media/partc2.png");
 
         // Initialise the hint
-        //self.mHint.setWindow(self.mGame);
+        try self.mHint.setWindow(self.mGame);
 
         // Initialise the sounds
         self.mGame.getGameSounds().loadResources();
@@ -366,27 +367,12 @@ pub const GameBoard = struct {
             }
         }
 
-        // Remove the hidden floating score
-        // NOTE: First iteration, is to capture what needed to be removed.
-        // Second iteration is to actually do the removal.
-        // I use this technique because iteration + mutation will invalidate pointers.
-        var floaterIndicesBuf: [10]usize = undefined;
-        var floatIdx: usize = 0;
-        for (self.mFloatingScores.items, 0..) |*floater, idx| {
-            if (floater.ended()) {
-                floaterIndicesBuf[floatIdx] = idx;
-                floatIdx += 1;
-            }
-        }
-        for (0..floatIdx) |idx| {
-            // swapRemove is known as a "swap and pop" which means
-            // if order doesn't matter a swap occurs with the last item.
-            // Then the last item is popped. This technique avoids having
-            // to shift and copy shit around.
-            _ = self.mFloatingScores.swapRemove(idx);
-        }
+        // Remove those floating scores that have ended.
+        self.cullFloatingScores();
 
         // TODO: Remove the hiden particle systems
+        // self.cullParticleSet();
+
         // mParticleSet.erase(
         //     remove_if (mParticleSet.begin(),
         //             mParticleSet.end(),
@@ -395,7 +381,191 @@ pub const GameBoard = struct {
     }
 
     pub fn draw(self: *Self) void {
-        // TODO
+        if (self.mGame.getMouseActive()) {
+            // Get mouse position
+            const mX = self.mGame.getMouseX();
+            const mY = self.mGame.getMouseY();
+
+            // Move the selector to the mouse if it is over a gem
+            if (self.overGem(mX, mY)) {
+                const mouseCoords = self.getCoord(mX, mY);
+                self.mSelectorX = mouseCoords.x;
+                self.mSelectorY = mouseCoords.y;
+            }
+        }
+
+        // Draw the selector over that gem
+        try self.mImgSelector.draw(
+            241 + self.mSelectorX * 65,
+            41 + self.mSelectorY * 65,
+            4,
+        );
+
+        // Draw the selector if a gem has been selected
+        if (self.mState == .eGemSelected) {
+            try self.mImgSelector.drawEx(
+                241 + self.mSelectedSquareFirst.x * 65,
+                41 + self.mSelectedSquareFirst.y * 65,
+                4,
+                1,
+                1,
+                0,
+                255,
+                c.SDL_Color{ .r = 0, .g = 255, .b = 255, .a = 255 },
+            );
+        }
+
+        // Draw the hint
+        try self.mHint.draw();
+
+        // Draw each floating score
+        for (self.mFloatingScores.items) |*floater| {
+            try floater.draw();
+        }
+
+        // TODO: Draw each particle system.
+        // std::for_each(mParticleSet.begin(),
+        // mParticleSet.end(),
+        // std::bind(&ParticleSystem::draw, _1));
+
+        // If game has finished, draw the score table
+        if (self.mState == .eShowingScoreTable) {
+            //scoreTable -> draw(241 + (65 * 8) / 2 - 150  , 105, 3);
+        }
+
+        // On to the gem drawing procedure. Let's have a pointer to the image of each gem
+        var img: ?*goImg.GoImage = null;
+        // Top left position of the board
+        const posX = 241;
+        const posY = 41;
+
+        for (0..8) |i| {
+            for (0..8) |j| {
+                // Reset the pointer.
+                img = null;
+
+                // Check the type of each square and
+                // save the proper image in the img pointer
+                switch (self.mBoard.squares[i][j].tSquare()) {
+                    .sqWhite => img = &self.mImgWhite,
+                    .sqRed => img = &self.mImgRed,
+                    .sqPurple => img = &self.mImgPurple,
+                    .sqOrange => img = &self.mImgOrange,
+                    .sqGreen => img = &self.mImgGreen,
+                    .sqYellow => img = &self.mImgYellow,
+                    .sqBlue => img = &self.mImgBlue,
+                    .sqEmpty => img = null,
+                }
+
+                if (img == null) {
+                    continue;
+                }
+
+                // WARN: hardcoded bullshit.
+                var imgX: i32 = posX + i * 65;
+                var imgY: i32 = posY + j * 65;
+                var imgAlpha: u8 = 255;
+
+                // When the board is first appearing, all the gems are falling
+                if (self.mState == .eBoardAppearing) {
+                    imgY = easings.easeOutQuad(
+                        @floatFromInt(self.mAnimationCurrentStep),
+                        @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
+                        @floatFromInt(self.mBoard.squares[i][j].destY * 65),
+                        @floatFromInt(self.mAnimationLongTotalSteps),
+                    );
+                }
+
+                // When two correct gems have been selected, they switch positions
+                else if (self.mState == .eGemSwitching) {
+
+                    // If the current gem is the first selected square
+                    if (self.mSelectedSquareFirst.equals(i, j)) {
+                        imgX = easings.easeOutQuad(
+                            @floatFromInt(self.mAnimationCurrentStep),
+                            @floatFromInt(posX + i * 65),
+                            @floatFromInt((self.mSelectedSquareSecond.x - self.mSelectedSquareFirst.x) * 65),
+                            @floatFromInt(self.mAnimationShortTotalSteps),
+                        );
+
+                        imgY = easings.easeOutQuad(
+                            @floatFromInt(self.mAnimationCurrentStep),
+                            @floatFromInt(posY + j * 65),
+                            @floatFromInt((self.mSelectedSquareSecond.y - self.mSelectedSquareFirst.y) * 65),
+                            @floatFromInt(self.mAnimationShortTotalSteps),
+                        );
+                    }
+
+                    // If the current gem is the second selected square
+                    else if (self.mSelectedSquareSecond.equals(i, j)) {
+                        imgX = easings.easeOutQuad(
+                            @floatFromInt(self.mAnimationCurrentStep),
+                            @floatFromInt(posX + i * 65),
+                            @floatFromInt((self.mSelectedSquareFirst.x - self.mSelectedSquareSecond.x) * 65),
+                            @floatFromInt(self.mAnimationShortTotalSteps),
+                        );
+
+                        imgY = easings.easeOutQuad(
+                            @floatFromInt(self.mAnimationCurrentStep),
+                            @floatFromInt(posY + j * 65),
+                            @floatFromInt((self.mSelectedSquareFirst.y - self.mSelectedSquareSecond.y) * 65),
+                            @floatFromInt(self.mAnimationShortTotalSteps),
+                        );
+                    }
+                }
+
+                // When the two selected gems have switched, the matched gems disappear
+                else if (self.mState == .eGemDisappearing) {
+                    if (self.mGroupedSquares) |gs| {
+                        if (gs.matched(co.Coord{ .x = i, .y = j })) {
+                            imgAlpha = 255 * (1 - @as(u8, @intCast(@divExact(self.mAnimationCurrentStep, self.mAnimationShortTotalSteps))));
+                        }
+                    }
+                }
+
+                // When matched gems have disappeared, spaces in the board must be filled
+                else if (self.mState == .eBoardFilling) {
+                    if (self.mBoard.squares[i][j].mustFall) {
+                        imgY = easings.easeOutQuad(
+                            @floatFromInt(self.mAnimationCurrentStep),
+                            @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
+                            @floatFromInt(self.mBoard.squares[i][j].destY * 65),
+                            @floatFromInt(self.mAnimationShortTotalSteps),
+                        );
+                    }
+                }
+
+                // When there are no more matching movements, the board disappears
+                else if (self.mState == .eBoardDisappearing or self.mState == .eTimeFinished) {
+                    imgY = easings.easeInQuad(
+                        @floatFromInt(self.mAnimationCurrentStep),
+                        @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
+                        @floatFromInt(self.mBoard.squares[i][j].destY * 65),
+                        @floatFromInt(self.mAnimationLongTotalSteps),
+                    );
+                } else if (self.mState == .eShowingScoreTable) {
+                    continue;
+                }
+
+                if (img) |im| {
+                    try im.drawEx(
+                        imgX,
+                        imgY,
+                        3,
+                        1,
+                        1,
+                        0,
+                        imgAlpha,
+                        c.SDL_Color{
+                            .r = 255,
+                            .g = 255,
+                            .b = 255,
+                            .a = 255,
+                        },
+                    );
+                }
+            }
+        }
     }
 
     pub fn mouseButtonDown(self: *Self, mouseX: i32, mouseY: i32) void {
@@ -597,6 +767,31 @@ pub const GameBoard = struct {
 
                 self.mStateGame.increaseScore(score);
             }
+        }
+    }
+
+    /// Cleans up any floating scores that have ended their animations.
+    /// We expect the list to be very small during gameplay, hence the small buffer size.
+    fn cullFloatingScores(self: *Self) !void {
+        var floaterIndicesBuf: [10]usize = undefined;
+        var floatIdx: usize = 0;
+
+        // First iteration, is to capture what needed to be removed.
+        // Second iteration is to actually do the removal.
+        // I use this technique because iteration + mutation will likely invalidate pointers.
+        for (self.mFloatingScores.items, 0..) |*floater, idx| {
+            if (floater.ended()) {
+                floaterIndicesBuf[floatIdx] = idx;
+                floatIdx += 1;
+            }
+        }
+
+        for (0..floatIdx) |idx| {
+            // swapRemove is known as a "swap and pop" which means:
+            // when order doesn't matter a swap occurs with the last item.
+            // Then the last item is popped. This technique avoids having
+            // to shift and copy shit around.
+            _ = self.mFloatingScores.swapRemove(idx);
         }
     }
 
