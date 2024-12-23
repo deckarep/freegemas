@@ -1,6 +1,6 @@
 const std = @import("std");
 const mch = @import("match.zig");
-const MatchList = std.ArrayList(*const mch.Match);
+const MatchList = std.ArrayList(mch.Match);
 const Coord = @import("coord.zig").Coord;
 
 /// Group of multiple matches.
@@ -18,17 +18,17 @@ pub const MultiMatch = struct {
         };
     }
 
-    pub fn deinit(self: *Self) void {
+    pub fn deinit(self: *const Self) void {
         defer self.super.deinit();
 
-        for (self.super.items) |*m| {
+        for (self.super.items) |m| {
             m.deinit();
         }
     }
 
     /// pushBack method was added to keep the code looking similar to
     /// the original code as possible.
-    pub inline fn pushBack(self: *Self, m: *const mch.Match) !void {
+    pub inline fn pushBack(self: *Self, m: mch.Match) !void {
         try self.super.append(m);
     }
 

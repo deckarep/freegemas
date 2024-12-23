@@ -18,7 +18,7 @@ pub const Match = struct {
         };
     }
 
-    pub fn deinit(self: *Self) void {
+    pub fn deinit(self: *const Self) void {
         self.super.deinit();
     }
 

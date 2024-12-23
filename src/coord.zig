@@ -1,8 +1,9 @@
 pub const Coord = struct {
-    x: i32 = -1,
-    y: i32 = -1,
+    // Better expressed as a usize vs i32.
+    x: ?usize = null,
+    y: ?usize = null,
 
-    pub inline fn equals(self: Coord, x: i32, y: i32) bool {
+    pub inline fn equals(self: Coord, x: usize, y: usize) bool {
         return (self.x == x and self.y == y);
     }
 

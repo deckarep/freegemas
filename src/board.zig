@@ -10,13 +10,34 @@ const mm = @import("multi_match.zig");
 const GRID_SIZE = 8;
 
 pub const Board = struct {
+    allocator: std.mem.Allocator,
+
     /// Matrix of squares
     squares: [GRID_SIZE][GRID_SIZE]Square = undefined,
 
     const Self = @This();
 
-    pub fn init() Self {
-        return Self{};
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return Self{
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: Self) void {
+        _ = self;
+        // For now, nothing to deinit.
+    }
+
+    /// Debug function to dump the state of the board.
+    pub fn dump(self: Self) void {
+        std.debug.print(">>>>>>>>>>>>>>>>>\n", .{});
+        for (0..GRID_SIZE) |i| {
+            for (0..GRID_SIZE) |j| {
+                std.debug.print("{s} ", .{self.squares[i][j].tSquare().String()});
+            }
+            std.debug.print("\n", .{});
+        }
+        std.debug.print("<<<<<<<<<<<<<<<<<\n", .{});
     }
 
     /// Generates a random board.
@@ -25,29 +46,60 @@ pub const Board = struct {
 
         // Converted to a while(true) with the test condition negated.
         // Since the original code was the fugly do/while loop.
+
+        // Regenerate if there is a direct solution or if it is impossible
+        const MAX_ITERS = 100;
+
+        var iterCount: usize = 0;
         while (true) {
             repeat = false;
 
             for (0..GRID_SIZE) |i| {
                 for (0..GRID_SIZE) |j| {
                     self.squares[i][j] = Square{};
-                    self.squares[i][j].sqType = @enumFromInt((try utility.getRandomIntValue() % 7) + 1);
+                    self.squares[i][j].sqType = @enumFromInt(@as(usize, @intCast(@mod(try utility.getRandomIntValue(), 7))) + 1);
                     self.squares[i][j].mustFall = true;
-                    self.squares[i][j].origY = (try utility.getRandomIntValue() % 8) - 9;
-                    self.squares[i][j].destY = j - self.squares[i][j].origY;
+                    self.squares[i][j].origY = @mod(try utility.getRandomIntValue(), 8) - 9;
+                    self.squares[i][j].destY = @intCast(@as(i32, @intCast(j)) - self.squares[i][j].origY);
                 }
             }
 
-            // TODO: regenerate one of the test below fails.
-            // Such as when no solveable solutions exist.
-            // if (!self.check().empty()) {
-            //     repeat = true;
-            // } else if (self.solutions().empty()) {
-            //     repeat = true;
-            // }
+            self.dump();
+
+            const matchesCheck = try self.check();
+            defer matchesCheck.deinit();
+            if (!matchesCheck.empty()) {
+                // Generated Board has matches. Repeating...
+
+                // r.c. - In other words, we don't want to start with a board that already
+                // needs to cascade. It must start stable.
+                repeat = true;
+            } else {
+                const sol = try self.solutions();
+                defer sol.deinit();
+                std.debug.print("one solution call...\n", .{});
+                if (sol.items.len == 0) {
+                    // Generated Board has no solutions. Repeating...
+
+                    // r.c. - In other words, we must start with a board that is solvable.
+                    // Otherwise the player already lost before they've even begun. So sad.
+                    repeat = true;
+                }
+            }
+
+            // DEBUG CODE HERE.
+            iterCount += 1;
+            if (iterCount >= MAX_ITERS) {
+                std.debug.print("bailing after {d} iters...\n", .{MAX_ITERS});
+            }
 
             if (!repeat) break;
         }
+
+        // When our loop exits its because:
+        // The generated Board has no direct matches but some possible solutions.
+        // So the board is now ready.
+        std.debug.print("final board generated after {d} iters...\n", .{iterCount});
     }
 
     /// Swaps squares x1,y1 and x2,y2
@@ -148,30 +200,29 @@ pub const Board = struct {
     /// matchings that were identified.
     ///
     /// NOTE: The caller owns the returned MultiMatch and must always deinit.
-    pub fn check(self: *Self, allocator: std.mem.Allocator) !mm.MultiMatch {
-        var k: i32 = undefined;
+    pub fn check(self: *Self) !mm.MultiMatch {
+        // r.c. better expressed as a usize vs i32.
+        var k: usize = undefined;
 
-        // WARN: In terms of memory leaks think I accounted for all cases.
-        // If this functions returns and matches is empty,
-        // currentRow/currentColumn leaks memory because it's not added
-        // to matches. So we need to deinit them.
-        // Otherwise, if they are added to matches, matches is will be
-        // returned and owned by the caller and upon matches.deinit being
-        // called all memory will be cleaned up correctly.
+        // WARN: In terms of memory leaks I *think* I accounted for all cases.
+        // For Zig, I added a cleanupHook to capture anything NOT added to
+        // the returned multi match. This way, those allocations while never
+        // returned to the caller can still be cleaned up.
 
-        var matches = mm.MultiMatch.init(allocator);
-        var cleanupHook = mm.MultiMatch.init(allocator);
+        var matches = mm.MultiMatch.init(self.allocator);
+        var cleanupHook = mm.MultiMatch.init(self.allocator);
         defer cleanupHook.deinit(); // Always fire deinit whether its populated or not.
 
         // First, we check each row (horizontal)
         for (0..GRID_SIZE) |y| {
-            for (0..GRID_SIZE - 2) |x| {
-                var currentRow = mch.Match.init(allocator);
+            var x: usize = 0;
+            while (x < GRID_SIZE - 2) : (x += 1) {
+                var currentRow = mch.Match.init(self.allocator);
                 try currentRow.pushBack(co.Coord{ .x = x, .y = y });
 
                 k = x + 1;
                 while (k < GRID_SIZE) : (k += 1) {
-                    if (self.squares[x][y] == self.squares[k][y] and
+                    if (self.squares[x][y].eql(self.squares[k][y]) and
                         self.squares[x][y].tSquare() != .sqEmpty)
                     {
                         try currentRow.pushBack(co.Coord{ .x = k, .y = y });
@@ -181,10 +232,10 @@ pub const Board = struct {
                 }
 
                 if (currentRow.size() > 2) {
-                    try matches.pushBack(&currentRow);
+                    try matches.pushBack(currentRow);
                 } else {
                     // We must still capture this allocation to ensure cleanup!
-                    try cleanupHook.pushBack(&currentRow);
+                    try cleanupHook.pushBack(currentRow);
                 }
 
                 x = k - 1;
@@ -193,13 +244,14 @@ pub const Board = struct {
 
         // Next, check each column (vertical)
         for (0..GRID_SIZE) |x| {
-            for (0..GRID_SIZE - 2) |y| {
-                var currentColumn = mch.Match.init(allocator);
+            var y: usize = 0;
+            while (y < GRID_SIZE - 2) : (y += 1) {
+                var currentColumn = mch.Match.init(self.allocator);
                 try currentColumn.pushBack(co.Coord{ .x = x, .y = y });
 
                 k = y + 1;
                 while (k < GRID_SIZE) : (k += 1) {
-                    if (self.squares[x][y] == self.squares[x][k] and
+                    if (self.squares[x][y].eql(self.squares[x][k]) and
                         self.squares[x][y].tSquare() != .sqEmpty)
                     {
                         try currentColumn.pushBack(co.Coord{ .x = x, .y = k });
@@ -209,10 +261,10 @@ pub const Board = struct {
                 }
 
                 if (currentColumn.size() > 2) {
-                    try matches.pushBack(&currentColumn);
+                    try matches.pushBack(currentColumn);
                 } else {
                     // We must still capture this allocation to ensure cleanup!
-                    try cleanupHook.pushBack(&currentColumn);
+                    try cleanupHook.pushBack(currentColumn);
                 }
 
                 y = k - 1;
@@ -224,14 +276,16 @@ pub const Board = struct {
 
     /// Checks if current Board has any possible valid movements.
     /// NOTE: Caller owns and must .deinit the returned results.
-    pub fn solutions(self: *Self, allocator: std.mem.Allocator) !std.ArrayList(co.Coord) {
-        var results = std.ArrayList(co.Coord).init(allocator);
+    pub fn solutions(self: *Self) !std.ArrayList(co.Coord) {
+        std.debug.print("solutions started...\n", .{});
+        defer std.debug.print("solutions finished...\n", .{});
+        var results = std.ArrayList(co.Coord).init(self.allocator);
 
-        const matches = try self.check(allocator);
+        const matches = try self.check();
         defer matches.deinit();
 
         if (!matches.empty()) {
-            try results.append(co.Coord{ .x = -1, .y = -1 });
+            try results.append(co.Coord{ .x = null, .y = null });
             return results;
         }
 
@@ -247,7 +301,7 @@ pub const Board = struct {
                 if (y > 0) {
                     temp.swap(x, y, x, y - 1);
 
-                    const tempChecks = try temp.check(allocator);
+                    const tempChecks = try temp.check();
                     defer tempChecks.deinit();
 
                     if (!tempChecks.empty()) {
@@ -261,7 +315,7 @@ pub const Board = struct {
                 if (y < 7) {
                     temp.swap(x, y, x, y + 1);
 
-                    const tempChecks = try temp.check(allocator);
+                    const tempChecks = try temp.check();
                     defer tempChecks.deinit();
 
                     if (!tempChecks.empty()) {
@@ -275,7 +329,7 @@ pub const Board = struct {
                 if (x > 0) {
                     temp.swap(x, y, x - 1, y);
 
-                    const tempChecks = try temp.check(allocator);
+                    const tempChecks = try temp.check();
                     defer tempChecks.deinit();
 
                     if (!tempChecks.empty()) {
@@ -289,7 +343,7 @@ pub const Board = struct {
                 if (x < 7) {
                     temp.swap(x, y, x + 1, y);
 
-                    const tempChecks = try temp.check(allocator);
+                    const tempChecks = try temp.check();
                     defer tempChecks.deinit();
 
                     if (!tempChecks.empty()) {
