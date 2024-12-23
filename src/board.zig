@@ -7,6 +7,7 @@ const co = @import("coord.zig");
 const mch = @import("match.zig");
 const mm = @import("multi_match.zig");
 
+const MAX_GEN_ATTEMPS = 50;
 const GRID_SIZE = 8;
 
 pub const Board = struct {
@@ -25,7 +26,8 @@ pub const Board = struct {
 
     pub fn deinit(self: Self) void {
         _ = self;
-        // For now, nothing to deinit.
+        // For now, nothing to deinit because the board doesn't do
+        // allocations up front. (at this point in time)
     }
 
     /// Debug function to dump the state of the board.
@@ -44,13 +46,11 @@ pub const Board = struct {
     pub fn generate(self: *Self) !void {
         var repeat = false;
 
+        // Regenerate if there is a direct solution or if it is impossible
+        var iterCount: usize = 0;
+
         // Converted to a while(true) with the test condition negated.
         // Since the original code was the fugly do/while loop.
-
-        // Regenerate if there is a direct solution or if it is impossible
-        const MAX_ITERS = 100;
-
-        var iterCount: usize = 0;
         while (true) {
             repeat = false;
 
@@ -64,6 +64,7 @@ pub const Board = struct {
                 }
             }
 
+            std.debug.print("intermedia board:\n", .{});
             self.dump();
 
             const matchesCheck = try self.check();
@@ -77,7 +78,6 @@ pub const Board = struct {
             } else {
                 const sol = try self.solutions();
                 defer sol.deinit();
-                std.debug.print("one solution call...\n", .{});
                 if (sol.items.len == 0) {
                     // Generated Board has no solutions. Repeating...
 
@@ -89,8 +89,8 @@ pub const Board = struct {
 
             // DEBUG CODE HERE.
             iterCount += 1;
-            if (iterCount >= MAX_ITERS) {
-                std.debug.print("bailing after {d} iters...\n", .{MAX_ITERS});
+            if (iterCount >= MAX_GEN_ATTEMPS) {
+                std.debug.print("bailing after {d} iters...\n", .{MAX_GEN_ATTEMPS});
             }
 
             if (!repeat) break;
