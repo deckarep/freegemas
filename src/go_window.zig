@@ -325,9 +325,11 @@ pub const GoWindow = struct {
             // Render the background clear
             _ = c.SDL_RenderClear(self.mRenderer);
 
-            // Iterator for drawing operations
-            var iter = self.mDrawingQueue.getIterator();
-            while (iter.next()) |*op| {
+            // Drain the self.mDrawingQueue by doing a while/queue.removeOrNull().
+            // Previously I was using an iterator, but the iterator just walks the PQ in no specific order.
+            // We need to drain it in terms of priority from lowest to highest (highest Z-depth is drawn on top!)
+            var optionalOp: ?DrawingQueueOp = self.mDrawingQueue.queue.removeOrNull();
+            while (optionalOp) |op| : (optionalOp = self.mDrawingQueue.queue.removeOrNull()) {
                 // Set transparency
                 _ = c.SDL_SetTextureAlphaMod(op.mTexture, op.mAlpha);
                 // Set coloring
@@ -358,8 +360,9 @@ pub const GoWindow = struct {
                 }
             }
 
-            // Empty the drawing queue
-            self.mDrawingQueue.clear();
+            // TODO: remove this after extensive testing phase is completed.
+            // Just ensuring the queue is fully drained...
+            std.debug.assert(self.mDrawingQueue.queue.items.len == 0);
 
             // Update the screen
             c.SDL_RenderPresent(self.mRenderer);
