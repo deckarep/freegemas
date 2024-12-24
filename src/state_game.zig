@@ -70,6 +70,7 @@ pub const StateGame = struct {
         self.setState(.eInitial);
 
         // Initialise game indicator
+        self.mGameIndicators = gi.GameIndicators.init();
         self.mGameIndicators.setGame(self.mGame, self);
 
         // Initialise game board

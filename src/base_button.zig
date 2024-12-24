@@ -20,12 +20,12 @@ const shadowColor = c.SDL_Color{
 
 pub const BaseButton = struct {
     mParentWindow: *goWin.GoWindow = undefined,
-    mImgBackground: goImg.GoImage,
+    mImgBackground: goImg.GoImage = goImg.GoImage.init(),
     mHasIcon: bool = false,
     // Icon is optional.
-    mImgIcon: ?goImg.GoImage,
-    mImgCaption: goImg.GoImage,
-    mTextHorizontalPos: i32,
+    mImgIcon: ?goImg.GoImage = null,
+    mImgCaption: goImg.GoImage = goImg.GoImage.init(),
+    mTextHorizontalPos: i32 = 0,
     mLastX: u32 = 0,
     mLastY: u32 = 0,
 

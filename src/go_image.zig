@@ -32,6 +32,7 @@ pub const GoImage = struct {
     }
 
     pub fn setWindow(self: *Self, pw: ?*goWin.GoWindow) void {
+        std.debug.assert(pw != null);
         self.mParentWindow = pw;
     }
 
@@ -132,8 +133,9 @@ pub const GoImage = struct {
         alpha: u8,
         color: c.SDL_Color,
     ) !bool {
+        //std.debug.assert(self.mParentWindow != null);
         if (self.mParentWindow == null) {
-            std.log.warn("parent window is null, cannot draw!", .{});
+            std.log.warn("self: {*} => parent window is null, cannot draw!", .{self});
             return false;
         }
 

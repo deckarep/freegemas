@@ -8,7 +8,7 @@ pub const GoMusic = struct {
     const Self = @This();
 
     pub fn init() Self {
-        return GoMusic{};
+        return Self{};
     }
 
     pub fn deinit(self: *Self) void {

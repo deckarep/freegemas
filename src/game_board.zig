@@ -654,9 +654,10 @@ pub const GameBoard = struct {
     // /// Returns the coords of the gem the mouse is over
     fn getCoord(self: Self, mX: i32, mY: i32) co.Coord {
         _ = self;
+        // WARN: hardcoded bullshit.
         return co.Coord{
-            .x = @intCast(@divExact((mX - 241), 65)),
-            .y = @intCast(@divExact((mY - 41), 65)),
+            .x = @intCast(@divTrunc((mX - 241), 65)),
+            .y = @intCast(@divTrunc((mY - 41), 65)),
         };
     }
 

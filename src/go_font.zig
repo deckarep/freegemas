@@ -104,6 +104,7 @@ pub const GoFont = struct {
         c.SDL_FreeSurface(tempSurface);
 
         var img = goImg.GoImage.init();
+        std.debug.assert(self.mParentWindow != null);
         img.setWindow(self.mParentWindow);
         img.setTexture(tempTexture);
 

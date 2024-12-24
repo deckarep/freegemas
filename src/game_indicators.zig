@@ -21,20 +21,20 @@ pub const GameIndicators = struct {
     mFontTime: goFont.GoFont = undefined,
     mFontScore: goFont.GoFont = undefined,
 
-    mImgTimeBackground: goImg.GoImage = undefined,
-    mImgScoreBackground: goImg.GoImage = undefined,
+    mImgTimeBackground: goImg.GoImage = goImg.GoImage.init(),
+    mImgScoreBackground: goImg.GoImage = goImg.GoImage.init(),
 
-    mImgTime: goImg.GoImage = undefined,
-    mImgTimeHeader: goImg.GoImage = undefined,
+    mImgTime: goImg.GoImage = goImg.GoImage.init(),
+    mImgTimeHeader: goImg.GoImage = goImg.GoImage.init(),
 
-    mImgScore: goImg.GoImage = undefined,
-    mImgScoreHeader: goImg.GoImage = undefined,
+    mImgScore: goImg.GoImage = goImg.GoImage.init(),
+    mImgScoreHeader: goImg.GoImage = goImg.GoImage.init(),
 
-    mHintButton: bb.BaseButton = undefined,
-    mResetButton: bb.BaseButton = undefined,
-    mExitButton: bb.BaseButton = undefined,
+    mHintButton: bb.BaseButton = bb.BaseButton.init(),
+    mResetButton: bb.BaseButton = bb.BaseButton.init(),
+    mExitButton: bb.BaseButton = bb.BaseButton.init(),
 
-    sfxSong: goMus.GoMusic = undefined,
+    sfxSong: goMus.GoMusic = goMus.GoMusic.init(),
 
     options: om.OptionsManager = undefined,
 
@@ -51,9 +51,11 @@ pub const GameIndicators = struct {
 
     pub fn loadResources(self: *Self) !void {
         // Load the font for the timer
+        self.mFontTime = goFont.GoFont.init();
         try self.mFontTime.setAll(self.mGame, "media/fuentelcd.ttf", 62);
 
         // Load the font for the scoreboard
+        self.mFontScore = goFont.GoFont.init();
         try self.mFontScore.setAll(self.mGame, "media/fuentelcd.ttf", 33);
 
         // Font to render some headers
