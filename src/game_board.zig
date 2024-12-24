@@ -482,19 +482,26 @@ pub const GameBoard = struct {
                 // When two correct gems have been selected, they switch positions
                 else if (self.mState == .eGemSwitching) {
 
+                    // NOTE: We could end up with negative numbers on the math below so we
+                    // need to temporarily cast to i32.
+                    const firstX: i32 = @intCast(self.mSelectedSquareFirst.x.?);
+                    const firstY: i32 = @intCast(self.mSelectedSquareFirst.y.?);
+                    const secondX: i32 = @intCast(self.mSelectedSquareSecond.x.?);
+                    const secondY: i32 = @intCast(self.mSelectedSquareSecond.y.?);
+
                     // If the current gem is the first selected square
                     if (self.mSelectedSquareFirst.equals(i, j)) {
                         imgX = @intFromFloat(easings.easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posX + i * 65),
-                            @floatFromInt((self.mSelectedSquareSecond.x.? - self.mSelectedSquareFirst.x.?) * 65),
+                            @floatFromInt((secondX - firstX) * 65),
                             @floatFromInt(self.mAnimationShortTotalSteps),
                         ));
 
                         imgY = @intFromFloat(easings.easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posY + j * 65),
-                            @floatFromInt((self.mSelectedSquareSecond.y.? - self.mSelectedSquareFirst.y.?) * 65),
+                            @floatFromInt((secondY - firstY) * 65),
                             @floatFromInt(self.mAnimationShortTotalSteps),
                         ));
                     }
@@ -504,14 +511,14 @@ pub const GameBoard = struct {
                         imgX = @intFromFloat(easings.easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posX + i * 65),
-                            @floatFromInt((self.mSelectedSquareFirst.x.? - self.mSelectedSquareSecond.x.?) * 65),
+                            @floatFromInt((firstX - secondX) * 65),
                             @floatFromInt(self.mAnimationShortTotalSteps),
                         ));
 
                         imgY = @intFromFloat(easings.easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posY + j * 65),
-                            @floatFromInt((self.mSelectedSquareFirst.y.? - self.mSelectedSquareSecond.y.?) * 65),
+                            @floatFromInt((firstY - secondY) * 65),
                             @floatFromInt(self.mAnimationShortTotalSteps),
                         ));
                     }
@@ -521,7 +528,7 @@ pub const GameBoard = struct {
                 else if (self.mState == .eGemDisappearing) {
                     if (self.mGroupedSquares) |gs| {
                         if (gs.matched(co.Coord{ .x = i, .y = j })) {
-                            imgAlpha = 255 * (1 - @as(u8, @intCast(@divExact(self.mAnimationCurrentStep, self.mAnimationShortTotalSteps))));
+                            imgAlpha = 255 * (1 - @as(u8, @intCast(@divTrunc(self.mAnimationCurrentStep, self.mAnimationShortTotalSteps))));
                         }
                     }
                 }
@@ -671,8 +678,14 @@ pub const GameBoard = struct {
         );
 
         // If it's a contiguous square
-        if (@abs(self.mSelectedSquareFirst.x.? - self.mSelectedSquareSecond.x.?) +
-            @abs(self.mSelectedSquareFirst.y.? - self.mSelectedSquareSecond.y.?) == 1)
+        // NOTE: We could end up with negative numbers on the math below so we
+        // need to temporarily cast to i32.
+        const firstX: i32 = @intCast(self.mSelectedSquareFirst.x.?);
+        const firstY: i32 = @intCast(self.mSelectedSquareFirst.y.?);
+        const secondX: i32 = @intCast(self.mSelectedSquareSecond.x.?);
+        const secondY: i32 = @intCast(self.mSelectedSquareSecond.y.?);
+        if (@abs(firstX - secondX) +
+            @abs(firstY - secondY) == 1)
         {
             // Create a temporal board with the movement already performed
             var temporal = self.mBoard;
@@ -786,53 +799,27 @@ pub const GameBoard = struct {
     }
 
     /// Cleans up any floating scores that have ended their animations.
-    /// We expect the list to be very small during gameplay, hence the small buffer size.
     fn cullFloatingScores(self: *Self) void {
-        var floaterIndicesBuf: [10]usize = undefined;
-        var floatIdx: usize = 0;
+        var list: *std.ArrayList(fs.FloatingScore) = &self.mFloatingScores;
 
-        // First iteration, is to capture what needed to be removed.
-        // Second iteration is to actually do the removal.
-        // I use this technique because iteration + mutation will likely invalidate pointers.
-        for (self.mFloatingScores.items, 0..) |*floater, idx| {
-            if (floater.ended()) {
-                floaterIndicesBuf[floatIdx] = idx;
-                floatIdx += 1;
+        var i: usize = list.items.len;
+        while (i > 0) : (i -= 1) {
+            if (list.items[i - 1].ended()) {
+                _ = list.swapRemove(i - 1);
             }
-        }
-
-        for (0..floatIdx) |idx| {
-            // swapRemove is known as a "swap and pop" which means:
-            // when order doesn't matter a swap occurs with the last item.
-            // Then the last item is popped. This technique avoids having
-            // to shift and copy shit around.
-            _ = self.mFloatingScores.swapRemove(idx);
         }
     }
 
     /// Cleans up any particle systems that are no longer alive.
-    /// We expect the list to be very small during gameplay, hence the small buffer size.
     /// NOTE: This code is nearly identical to cullFloatingScores, perhaps I can simplify.
     fn cullParticleSystems(self: *Self) void {
-        var psIndicesBuf: [10]usize = undefined;
-        var psIdx: usize = 0;
+        var list: *std.ArrayList(ps.ParticleSystem) = &self.mParticleSysList;
 
-        // First iteration, is to capture what needed to be removed.
-        // Second iteration is to actually do the removal.
-        // I use this technique because iteration + mutation will likely invalidate pointers.
-        for (self.mParticleSysList.items, 0..) |*partSys, idx| {
-            if (partSys.ended()) {
-                psIndicesBuf[psIdx] = idx;
-                psIdx += 1;
+        var i: usize = list.items.len;
+        while (i > 0) : (i -= 1) {
+            if (list.items[i - 1].ended()) {
+                _ = list.swapRemove(i - 1);
             }
-        }
-
-        for (0..psIdx) |idx| {
-            // swapRemove is known as a "swap and pop" which means:
-            // when order doesn't matter a swap occurs with the last item.
-            // Then the last item is popped. This technique avoids having
-            // to shift and copy shit around.
-            _ = self.mParticleSysList.swapRemove(idx);
         }
     }
 

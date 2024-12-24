@@ -23,6 +23,11 @@ pub fn main() !void {
         try w.show();
     }
 
+    // Testing board.
+    if (false) {
+        try testBoard();
+    }
+
     // Testing queue direct
     if (false) {
         const q = try dq.DrawingQueue.init(alloc);
@@ -32,7 +37,7 @@ pub fn main() !void {
         std.debug.print("finished...\n", .{});
     }
 
-    if (true) {
+    if (false) {
         try testMatches();
     }
 }
@@ -58,19 +63,40 @@ pub fn doAdds(q: dq.DrawingQueue) !void {
 fn testMatches() !void {
     const mch = @import("match.zig");
     const co = @import("coord.zig");
-    //const mm = @import("muli_match.zig");
+    const mm = @import("multi_match.zig");
     {
-        var singleMatch = mch.Match.init(alloc);
-        singleMatch.deinit();
-        try singleMatch.pushBack(co.Coord{ .x = 1, .y = 2 });
-        try singleMatch.pushBack(co.Coord{ .x = 11, .y = 22 });
-        try singleMatch.pushBack(co.Coord{ .x = 111, .y = 222 });
+        var sm1 = mch.Match.init(alloc);
+        sm1.deinit();
+        try sm1.pushBack(co.Coord{ .x = 1, .y = 2 });
+        try sm1.pushBack(co.Coord{ .x = 11, .y = 22 });
+        try sm1.pushBack(co.Coord{ .x = 111, .y = 222 });
 
-        std.debug.print("midSquare => {?}\n", .{singleMatch.midSquare()});
+        var sm2 = mch.Match.init(alloc);
+        sm2.deinit();
+        try sm2.pushBack(co.Coord{ .x = 1, .y = 2 });
+        try sm2.pushBack(co.Coord{ .x = 11, .y = 22 });
+        try sm2.pushBack(co.Coord{ .x = 111, .y = 222 });
 
-        std.debug.print(
-            "found? => {s}\n ",
-            .{if (singleMatch.match(co.Coord{ .x = 121, .y = 22 })) "yes" else "no"},
-        );
+        var multiM = mm.MultiMatch.init(alloc);
+        try multiM.pushBack(&sm1);
+        try multiM.pushBack(&sm2);
+
+        const res = multiM.matched(co.Coord{ .x = 11, .y = 22 });
+        std.debug.print("found? => {s}\n", .{if (res) "yes" else "no"});
+    }
+}
+
+fn testBoard() !void {
+    const bd = @import("board.zig");
+
+    var brd = bd.Board.init(alloc);
+    defer brd.deinit();
+
+    try brd.generate();
+    std.debug.print("final board:\n", .{});
+    brd.dump();
+
+    while (true) {
+        std.time.sleep(std.time.ns_per_s * 1);
     }
 }

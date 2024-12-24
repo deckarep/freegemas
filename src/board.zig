@@ -176,7 +176,7 @@ pub const Board = struct {
                     self.squares[x][y].sqType = @enumFromInt(@mod(try utility.getRandomIntValue(), 7) + 1);
 
                     self.squares[x][y].mustFall = true;
-                    self.squares[x][y].origY = @intCast(y - emptySpaces);
+                    self.squares[x][y].origY = @as(i32, @intCast(y)) - @as(i32, @intCast(emptySpaces));
                     self.squares[x][y].destY = emptySpaces;
                 }
             }
