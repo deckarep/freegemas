@@ -8,6 +8,7 @@ const c = @import("cdefs.zig").c;
 const fs = @import("floating_score.zig");
 const easings = @import("easings.zig");
 const gh = @import("game_hint.zig");
+const ps = @import("particle_system.zig");
 
 pub const tState = enum {
     eNoBoard,
@@ -28,7 +29,7 @@ pub const GameBoard = struct {
 
     mState: tState = .eNoBoard,
 
-    // mStateGame: *StateGame,
+    mStateGame: *StateGame,
 
     // Parent game.
     mGame: *goWin.GoWindow,
@@ -79,7 +80,7 @@ pub const GameBoard = struct {
     mFloatingScores: std.ArrayList(fs.FloatingScore) = undefined,
 
     /// Group of particle systems
-    //vector<ParticleSystem> mParticleSet;
+    mParticleSysList: std.ArrayList(ps.ParticleSystem) = undefined,
 
     /// Reference to the score table
     //std::shared_ptr<ScoreTable> scoreTable;
@@ -107,7 +108,7 @@ pub const GameBoard = struct {
         }
 
         self.mFloatingScores.deinit();
-        // TODO: self.mParticleSet.deinit();
+        self.mParticleSysList.deinit();
     }
 
     // Public below
@@ -370,14 +371,8 @@ pub const GameBoard = struct {
         // Remove those floating scores that have ended.
         self.cullFloatingScores();
 
-        // TODO: Remove the hiden particle systems
-        // self.cullParticleSet();
-
-        // mParticleSet.erase(
-        //     remove_if (mParticleSet.begin(),
-        //             mParticleSet.end(),
-        //             std::bind<bool>(&ParticleSystem::ended, _1)),
-        //     mParticleSet.end());
+        // Remove the non-active particle systems
+        self.cullParticleSystems();
     }
 
     pub fn draw(self: *Self) void {
@@ -423,10 +418,10 @@ pub const GameBoard = struct {
             try floater.draw();
         }
 
-        // TODO: Draw each particle system.
-        // std::for_each(mParticleSet.begin(),
-        // mParticleSet.end(),
-        // std::bind(&ParticleSystem::draw, _1));
+        // Draw each particle system.
+        for (self.mParticleSysList.items) |*partSys| {
+            try partSys.draw();
+        }
 
         // If game has finished, draw the score table
         if (self.mState == .eShowingScoreTable) {
@@ -439,8 +434,11 @@ pub const GameBoard = struct {
         const posX = 241;
         const posY = 41;
 
-        for (0..8) |i| {
-            for (0..8) |j| {
+        // TODO: this should be a universal const
+        const GRID_SIZE = 8;
+
+        for (0..GRID_SIZE) |i| {
+            for (0..GRID_SIZE) |j| {
                 // Reset the pointer.
                 img = null;
 
@@ -457,6 +455,7 @@ pub const GameBoard = struct {
                     .sqEmpty => img = null,
                 }
 
+                // This becomes null when represented by the "empty" square type.
                 if (img == null) {
                     continue;
                 }
@@ -547,23 +546,22 @@ pub const GameBoard = struct {
                     continue;
                 }
 
-                if (img) |im| {
-                    try im.drawEx(
-                        imgX,
-                        imgY,
-                        3,
-                        1,
-                        1,
-                        0,
-                        imgAlpha,
-                        c.SDL_Color{
-                            .r = 255,
-                            .g = 255,
-                            .b = 255,
-                            .a = 255,
-                        },
-                    );
-                }
+                // If we get down to here, impossible for img to be null.
+                try img.?.drawEx(
+                    imgX,
+                    imgY,
+                    3,
+                    1,
+                    1,
+                    0,
+                    imgAlpha,
+                    c.SDL_Color{
+                        .r = 255,
+                        .g = 255,
+                        .b = 255,
+                        .a = 255,
+                    },
+                );
             }
         }
     }
@@ -754,17 +752,24 @@ pub const GameBoard = struct {
                     80,
                 ));
 
-                // TODO particles soon.
                 // Create a new particle system for it to appear over the square
-                // for(size_t i = 0, s = m.size(); i < s; ++i)
-                // {
-                //     mParticleSet.emplace_back(ParticleSystem(&mImgParticle1, &mImgParticle2,
-                //         50, 50,
-                //         241 + m[i].x * 65 + 32,
-                //         41 + m[i].y * 65 + 32, 60, 0.5));
+                for (0..m.size()) |i| {
+                    self.mParticleSysList.append(ps.ParticleSystem.init(
+                        &self.mImgParticle1,
+                        &self.mImgParticle2,
+                        50,
+                        50,
+                        // WARN: Hardcoded bullshit again.
+                        241 + m.super.items[i].x * 65 + 32,
+                        41 + m.super.items[i].y * 65 + 32,
+                        60,
+                        0.5,
+                        c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
+                        self.allocator,
+                    ));
+                }
 
-                // }
-
+                // Bump the score.
                 self.mStateGame.increaseScore(score);
             }
         }
@@ -792,6 +797,32 @@ pub const GameBoard = struct {
             // Then the last item is popped. This technique avoids having
             // to shift and copy shit around.
             _ = self.mFloatingScores.swapRemove(idx);
+        }
+    }
+
+    /// Cleans up any particle systems that are no longer alive.
+    /// We expect the list to be very small during gameplay, hence the small buffer size.
+    /// NOTE: This code is nearly identical to cullFloatingScores, perhaps I can simplify.
+    fn cullParticleSystems(self: *Self) !void {
+        var psIndicesBuf: [10]usize = undefined;
+        var psIdx: usize = 0;
+
+        // First iteration, is to capture what needed to be removed.
+        // Second iteration is to actually do the removal.
+        // I use this technique because iteration + mutation will likely invalidate pointers.
+        for (self.mParticleSysList.items, 0..) |*partSys, idx| {
+            if (partSys.ended()) {
+                psIndicesBuf[psIdx] = idx;
+                psIdx += 1;
+            }
+        }
+
+        for (0..psIdx) |idx| {
+            // swapRemove is known as a "swap and pop" which means:
+            // when order doesn't matter a swap occurs with the last item.
+            // Then the last item is popped. This technique avoids having
+            // to shift and copy shit around.
+            _ = self.mParticleSysList.swapRemove(idx);
         }
     }
 
