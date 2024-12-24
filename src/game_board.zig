@@ -37,10 +37,10 @@ pub const GameBoard = struct {
     mGame: *goWin.GoWindow = undefined,
 
     /// Coordinates for the selected square (if any)
-    mSelectedSquareFirst: co.Coord,
+    mSelectedSquareFirst: co.Coord = co.Coord{ .x = null, .y = null },
 
     /// Coordinates for the second selected square
-    mSelectedSquareSecond: co.Coord,
+    mSelectedSquareSecond: co.Coord = co.Coord{ .x = null, .y = null },
 
     /// Container for the grouped squares
     mGroupedSquares: ?mm.MultiMatch = null,
@@ -49,25 +49,25 @@ pub const GameBoard = struct {
     mBoard: brd.Board = undefined,
 
     /// Hint
-    mHint: gh.GameHint,
+    mHint: gh.GameHint = gh.GameHint.init(),
 
     // Track if a hint is used, to prevent score increases when so
     mHintUsed: bool = false,
 
     /// Particle images.
-    mImgParticle1: goImg.GoImage,
-    mImgParticle2: goImg.GoImage,
+    mImgParticle1: goImg.GoImage = goImg.GoImage.init(),
+    mImgParticle2: goImg.GoImage = goImg.GoImage.init(),
 
     /// Image for the gem selector
-    mImgSelector: goImg.GoImage,
+    mImgSelector: goImg.GoImage = goImg.GoImage.init(),
 
-    mImgWhite: goImg.GoImage,
-    mImgRed: goImg.GoImage,
-    mImgPurple: goImg.GoImage,
-    mImgOrange: goImg.GoImage,
-    mImgGreen: goImg.GoImage,
-    mImgYellow: goImg.GoImage,
-    mImgBlue: goImg.GoImage,
+    mImgWhite: goImg.GoImage = goImg.GoImage.init(),
+    mImgRed: goImg.GoImage = goImg.GoImage.init(),
+    mImgPurple: goImg.GoImage = goImg.GoImage.init(),
+    mImgOrange: goImg.GoImage = goImg.GoImage.init(),
+    mImgGreen: goImg.GoImage = goImg.GoImage.init(),
+    mImgYellow: goImg.GoImage = goImg.GoImage.init(),
+    mImgBlue: goImg.GoImage = goImg.GoImage.init(),
 
     /// Animation current step
     mAnimationCurrentStep: i32 = 0,

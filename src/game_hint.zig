@@ -14,7 +14,7 @@ pub const GameHint = struct {
     mShowingHint: bool = false,
 
     /// Coordinates for the hint
-    mHintLocation: co.Coord = co.Coord{ .x = -1, .y = -1 },
+    mHintLocation: co.Coord = co.Coord{ .x = null, .y = null },
 
     /// Image for the hint
     mImgSelector: goImg.GoImage = undefined,

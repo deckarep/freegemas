@@ -44,11 +44,13 @@ pub const BaseButton = struct {
         self.mParentWindow = pw;
         _ = try self.mImgBackground.setWindowAndPath(pw, "media/buttonBackground.png");
 
-        self.mHasIcon = !std.mem.eql(u8, iconPath, "");
+        // WARN: This check may not be robust enough.
+        self.mHasIcon = iconPath.len > 0;
 
         if (self.mHasIcon) {
             var buf: [128]u8 = undefined;
             const finalPath = try std.fmt.bufPrintZ(&buf, "media/{s}", .{iconPath});
+            self.mImgIcon = goImg.GoImage.init();
             _ = try self.mImgIcon.?.setWindowAndPath(pw, finalPath);
         }
 
