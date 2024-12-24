@@ -4,6 +4,8 @@ const goWin = @import("go_window.zig");
 
 pub const DrawingQueueOp = struct {
     mAngle: f64,
+    // r.c. - added by me, how can you not have blend modes?
+    mBlendMode: c.SDL_BlendMode = c.SDL_BLENDMODE_BLEND,
     mTexture: *c.SDL_Texture,
     mDstRect: c.SDL_Rect,
     mColor: c.SDL_Color,

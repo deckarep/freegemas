@@ -61,6 +61,7 @@ pub const Particle = struct {
             0,
             self.mAlpha,
             self.mColor,
+            c.SDL_BLENDMODE_ADD,
         );
     }
 

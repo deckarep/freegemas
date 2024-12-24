@@ -325,7 +325,7 @@ pub const GoWindow = struct {
             // Render the background clear
             _ = c.SDL_RenderClear(self.mRenderer);
 
-            //     // Iterator for drawing operations
+            // Iterator for drawing operations
             var iter = self.mDrawingQueue.getIterator();
             while (iter.next()) |*op| {
                 // Set transparency
@@ -337,6 +337,10 @@ pub const GoWindow = struct {
                     op.mColor.g,
                     op.mColor.b,
                 );
+                // Set blend mode
+                std.debug.assert(op.mBlendMode != c.SDL_BLENDMODE_NONE);
+                _ = c.SDL_SetTextureBlendMode(op.mTexture, op.mBlendMode);
+
                 // Draw the texture
                 const res = c.SDL_RenderCopyEx(
                     self.mRenderer,
@@ -388,6 +392,7 @@ pub const GoWindow = struct {
         z: f32,
         alpha: u8,
         color: c.SDL_Color,
+        blendMode: c.SDL_BlendMode,
     ) !void {
         // Create the new drawing operation and fill it.
         const op = DrawingQueueOp{
@@ -396,6 +401,7 @@ pub const GoWindow = struct {
             .mAngle = angle,
             .mAlpha = alpha,
             .mColor = color,
+            .mBlendMode = blendMode,
         };
 
         // Store it in the container, sorted by depth.

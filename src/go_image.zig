@@ -119,6 +119,7 @@ pub const GoImage = struct {
             0,
             255,
             color,
+            c.SDL_BLENDMODE_BLEND,
         );
     }
 
@@ -132,6 +133,7 @@ pub const GoImage = struct {
         angle: f32,
         alpha: u8,
         color: c.SDL_Color,
+        blendMode: c.SDL_BlendMode,
     ) !bool {
         //std.debug.assert(self.mParentWindow != null);
         if (self.mParentWindow == null) {
@@ -151,7 +153,6 @@ pub const GoImage = struct {
             .y = y,
         };
 
-        //std.debug.assert(self.mParentWindow.?.mDrawingQueue.queue.items.len == 0);
         try self.mParentWindow.?.enqueueDraw(
             self.mTexture.?,
             destRect,
@@ -159,6 +160,7 @@ pub const GoImage = struct {
             @floatFromInt(z),
             alpha,
             color,
+            blendMode,
         );
 
         return true;

@@ -70,6 +70,7 @@ pub const GameHint = struct {
                 0,
                 @intFromFloat(p1 * 255),
                 c.SDL_Color{ .r = 0, .g = 255, .b = 0, .a = 255 },
+                c.SDL_BLENDMODE_BLEND,
             );
         }
     }

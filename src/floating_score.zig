@@ -72,6 +72,7 @@ pub const FloatingScore = struct {
             0,
             @intFromFloat(p * 255),
             scoreColor,
+            c.SDL_BLENDMODE_BLEND,
         );
 
         _ = try self.mScoreImageShadow.drawEx(
@@ -83,6 +84,7 @@ pub const FloatingScore = struct {
             0,
             @intFromFloat(p * 255),
             scoreColor,
+            c.SDL_BLENDMODE_BLEND,
         );
 
         _ = try self.mScoreImageShadow.drawEx(
@@ -94,6 +96,7 @@ pub const FloatingScore = struct {
             0,
             @intFromFloat(p * 255),
             scoreColor,
+            c.SDL_BLENDMODE_BLEND,
         );
     }
 };

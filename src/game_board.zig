@@ -411,6 +411,7 @@ pub const GameBoard = struct {
                 0,
                 255,
                 c.SDL_Color{ .r = 0, .g = 255, .b = 255, .a = 255 },
+                c.SDL_BLENDMODE_BLEND,
             );
         }
 
@@ -574,6 +575,7 @@ pub const GameBoard = struct {
                         .b = 255,
                         .a = 255,
                     },
+                    c.SDL_BLENDMODE_BLEND,
                 );
             }
         }
