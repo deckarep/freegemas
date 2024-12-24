@@ -57,18 +57,18 @@ pub const GameHint = struct {
             const p1: f32 = 1 - @as(f32, @floatFromInt(@divExact(self.mAnimationCurrentStep, self.mAnimationTotalSteps)));
 
             // Get the location
-            const pX1: f32 = 241 + self.mHintLocation.x * 65 - self.mImgSelector.getWidth() * (2 - p1) / 2 + 65 / 2;
-            const pY1: f32 = 41 + self.mHintLocation.y * 65 - self.mImgSelector.getHeight() * (2 - p1) / 2 + 65 / 2;
+            const pX1: f32 = 241 + @as(f32, @floatFromInt(self.mHintLocation.x.?)) * 65 - @as(f32, @floatFromInt(self.mImgSelector.getWidth())) * (2 - p1) / 2 + 65 / 2;
+            const pY1: f32 = 41 + @as(f32, @floatFromInt(self.mHintLocation.y.?)) * 65 - @as(f32, @floatFromInt(self.mImgSelector.getHeight())) * (2 - p1) / 2 + 65 / 2;
 
             // Draw the hint
-            self.mImgSelector.drawEx(
-                pX1,
-                pY1,
+            _ = try self.mImgSelector.drawEx(
+                @intFromFloat(pX1),
+                @intFromFloat(pY1),
                 10,
                 2 - p1,
                 2 - p1,
                 0,
-                p1 * 255,
+                @intFromFloat(p1 * 255),
                 c.SDL_Color{ .r = 0, .g = 255, .b = 0, .a = 255 },
             );
         }

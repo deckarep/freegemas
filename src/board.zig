@@ -112,11 +112,11 @@ pub const Board = struct {
 
     /// Empties square (x,y)
     pub fn del(self: *Self, x: usize, y: usize) void {
-        self.squares[x][y] = SquareType.sqEmpty;
+        self.squares[x][y] = Square{ .sqType = .sqEmpty };
     }
 
     /// Calculates squares' positions after deleting the matching gems, also filling the new spaces
-    pub fn calcFallMovements(self: *Self) void {
+    pub fn calcFallMovements(self: *Self) !void {
         // Before anything else, let's reset the animation coordinates for each square
         self.endAnimations();
 
@@ -129,14 +129,14 @@ pub const Board = struct {
                 var y: i32 = 7;
                 while (y >= 0) : (y -= 1) {
                     // origY stores the initial vertical position of the gem before falling
-                    self.squares[x][y].origY = y;
+                    self.squares[x][@intCast(y)].origY = y;
 
                     // If the current square is empty, every square above it should fall one position
-                    if (self.squares[x][y].tSquare() == .sqEmpty) {
+                    if (self.squares[x][@intCast(y)].tSquare() == .sqEmpty) {
                         var k = y - 1;
                         while (k >= 0) : (k -= 1) {
-                            self.squares[x][k].mustFall = true;
-                            self.squares[x][k].destY += 1;
+                            self.squares[x][@intCast(k)].mustFall = true;
+                            self.squares[x][@intCast(k)].destY += 1;
                         }
                     }
                 }
@@ -146,17 +146,19 @@ pub const Board = struct {
                 y = 7;
                 while (y >= 0) : (y -= 1) {
                     // If the square is not empty and has to fall, move it to the new position
-                    if (self.squares[x][y].mustFall and self.squares[x][y].tSquare() != .sqEmpty) {
-                        const y0 = self.squares[x][y].destY;
-                        self.squares[x][y + y0] = self.squares[x][y];
-                        self.squares[x][y] = .sqEmpty;
+                    if (self.squares[x][@intCast(y)].mustFall and self.squares[x][@intCast(y)].tSquare() != .sqEmpty) {
+                        const y0 = self.squares[x][@intCast(y)].destY;
+                        self.squares[x][@as(usize, @intCast(y)) + y0] = self.squares[x][@intCast(y)];
+                        // r.c. - not sure if this is equivilent, original code set the entire object to .sqEmpty.
+                        // This could have introduced a bug...check on it.
+                        self.squares[x][@intCast(y)].sqType = .sqEmpty;
                     }
                 }
             }
 
             // Finally, let's count how many new empty spaces there are so we can fill
             // them with new random gems
-            var emptySpaces: i32 = 0;
+            var emptySpaces: usize = 0;
 
             // We start counting from top to bottom. Once we find a square, we stop counting
             for (0..GRID_SIZE) |y| {
@@ -171,10 +173,10 @@ pub const Board = struct {
             for (0..GRID_SIZE) |y| {
                 if (self.squares[x][y].tSquare() == .sqEmpty) {
                     self.squares[x][y] = Square{};
-                    self.squares[x][y].sqType = @enumFromInt((try utility.getRandomIntValue() % 7) + 1);
+                    self.squares[x][y].sqType = @enumFromInt(@mod(try utility.getRandomIntValue(), 7) + 1);
 
                     self.squares[x][y].mustFall = true;
-                    self.squares[x][y].origY = y - emptySpaces;
+                    self.squares[x][y].origY = @intCast(y - emptySpaces);
                     self.squares[x][y].destY = emptySpaces;
                 }
             }
@@ -182,12 +184,12 @@ pub const Board = struct {
     }
 
     /// Places all the gems out of the screen
-    pub fn dropAllGems(self: *Self) void {
+    pub fn dropAllGems(self: *Self) !void {
         for (0..GRID_SIZE) |x| {
             for (0..GRID_SIZE) |y| {
                 self.squares[x][y].mustFall = true;
-                self.squares[x][y].origY = y;
-                self.squares[x][y].destY = 9 + try utility.getRandomIntValue() % 8;
+                self.squares[x][y].origY = @intCast(y);
+                self.squares[x][y].destY = @intCast(9 + @mod(try utility.getRandomIntValue(), 8));
             }
         }
     }
@@ -363,7 +365,7 @@ pub const Board = struct {
         for (0..GRID_SIZE) |x| {
             for (0..GRID_SIZE) |y| {
                 self.squares[x][y].mustFall = false;
-                self.squares[x][y].origY = y;
+                self.squares[x][y].origY = @intCast(y);
                 self.squares[x][y].destY = 0;
             }
         }

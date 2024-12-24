@@ -42,22 +42,22 @@ pub const BaseButton = struct {
         iconPath: []const u8,
     ) !void {
         self.mParentWindow = pw;
-        try self.mImgBackground.setWindowAndPath(pw, "media/buttonBackground.png");
+        _ = try self.mImgBackground.setWindowAndPath(pw, "media/buttonBackground.png");
 
         self.mHasIcon = !std.mem.eql(u8, iconPath, "");
 
         if (self.mHasIcon) {
             var buf: [128]u8 = undefined;
             const finalPath = try std.fmt.bufPrintZ(&buf, "media/{s}", .{iconPath});
-            try self.mImgIcon.setWindowAndPath(pw, finalPath);
+            _ = try self.mImgIcon.?.setWindowAndPath(pw, finalPath);
         }
 
-        self.setText(caption);
+        try self.setText(caption);
     }
 
-    pub fn setText(self: *Self, caption: [:0]const u8) void {
+    pub fn setText(self: *Self, caption: [:0]const u8) !void {
         var textFont = goFont.GoFont.init();
-        textFont.setAll(self.mParentWindow, "media/fuenteNormal.ttf", 27);
+        try textFont.setAll(self.mParentWindow, "media/fuenteNormal.ttf", 27);
 
         self.mImgCaption = textFont.renderTextWithShadow(
             caption,
@@ -68,28 +68,32 @@ pub const BaseButton = struct {
         );
 
         if (self.mHasIcon) {
-            self.mTextHorizontalPosition = 40 + (self.mImgBackground.getWidth() - 40) / 2 - self.mImgCaption.getWidth() / 2;
+            self.mTextHorizontalPos = 40 + @divExact((self.mImgBackground.getWidth() - 40), 2) - @divExact(self.mImgCaption.getWidth(), 2);
         } else {
-            self.mTextHorizontalPosition = self.mImgBackground.getWidth() / 2 - self.mImgCaption.getWidth() / 2;
+            self.mTextHorizontalPos = @divExact(self.mImgBackground.getWidth(), 2) - @divExact(self.mImgCaption.getWidth(), 2);
         }
     }
 
-    pub fn draw(self: Self, x: i32, y: i32, z: f32) !void {
-        self.mLastX = x;
-        self.mLastY = y;
+    pub fn draw(self: *Self, x: i32, y: i32, z: f32) !void {
+        self.mLastX = @intCast(x);
+        self.mLastY = @intCast(y);
+
+        const zi32: i32 = @intFromFloat(z);
 
         if (self.mHasIcon) {
-            try self.mImgIcon.draw(x + 7, y, z + 1);
+            try self.mImgIcon.?.draw(x + 7, y, zi32 + 1);
         }
 
-        try self.mImgCaption.draw(x + self.mTextHorizontalPosition, y + 5, z + 2);
+        try self.mImgCaption.draw(x + self.mTextHorizontalPos, y + 5, zi32 + 2);
 
-        try self.mImgBackground.draw(x, y, z);
+        try self.mImgBackground.draw(x, y, zi32);
     }
 
-    pub fn clicked(self: Self, mX: u32, mY: 32) bool {
-        if (mX > self.mLastX and mX < self.mLastX + self.mImgBackground.getWidth() and
-            mY > self.mLastY and mY < self.mLastY + self.mImgBackground.getHeight())
+    pub fn clicked(self: Self, mX: u32, mY: u32) bool {
+        const imgWidth: u32 = @intCast(self.mImgBackground.getWidth());
+        const imgHeight: u32 = @intCast(self.mImgBackground.getHeight());
+        if (mX > self.mLastX and mX < self.mLastX + imgWidth and
+            mY > self.mLastY and mY < self.mLastY + imgHeight)
         {
             return true;
         }

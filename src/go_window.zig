@@ -4,6 +4,7 @@ const DrawingQueueOp = @import("go_drawingqueue.zig").DrawingQueueOp;
 const DrawingQueue = @import("go_drawingqueue.zig").DrawingQueue;
 const optsMan = @import("options_manager.zig");
 const st = @import("state.zig");
+const StateGame = @import("state_game.zig").StateGame;
 const StateHowToPlay = @import("state_how_to_play.zig").StateHowToPlay;
 const StateMainMenu = @import("state_main_menu.zig").StateMainMenu;
 const goImg = @import("go_image.zig");
@@ -12,9 +13,13 @@ const c = @import("cdefs.zig").c;
 
 // Temporarily public for troubleshooting.
 pub var howToPlay: ?StateHowToPlay = null;
+pub var gamePlayEndless: ?StateGame = null;
+pub var gamePlayTimetrial: ?StateGame = null;
 pub var mainMenu: ?StateMainMenu = null;
 
 pub const GoWindow = struct {
+    allocator: std.mem.Allocator,
+
     /// Running flag
     mShouldRun: bool,
 
@@ -75,6 +80,7 @@ pub const GoWindow = struct {
     ) !Self {
         std.debug.print("GoWindow::init()\n", .{});
         const o = Self{
+            .allocator = allocator,
             .mCaption = caption,
             .mWidth = width,
             .mHeight = height,
@@ -370,7 +376,7 @@ pub const GoWindow = struct {
         return self.mRenderer.?;
     }
 
-    pub inline fn getGameSounds(self: Self) *const gs.GameSounds {
+    pub inline fn getGameSounds(self: *Self) *gs.GameSounds {
         return &self.mGameSounds;
     }
 
@@ -426,15 +432,35 @@ pub const GoWindow = struct {
         return self.mMouseY;
     }
 
+    pub inline fn getCurrentState(self: Self) []const u8 {
+        return self.mCurrentStateStr;
+    }
+
     pub fn changeState(self: *Self, newState: []const u8) !void {
         if (std.mem.eql(u8, newState, self.mCurrentStateStr)) {
             return;
         } else if (std.mem.eql(u8, newState, "stateQuit")) {
             self.close();
         } else if (std.mem.eql(u8, newState, "stateGameEndless")) {
-            std.debug.print("TODO: stateGameEndless...\n", .{});
+            if (gamePlayEndless == null) {
+                gamePlayEndless = try StateGame.init(.eEndless, self, self.allocator);
+            }
+
+            const stater = gamePlayEndless.?.stater(self);
+            try stater.setup();
+
+            self.mCurrentState = stater;
+            self.mCurrentStateStr = "stateGameEndless";
         } else if (std.mem.eql(u8, newState, "stateGameTimetrial")) {
-            std.debug.print("TODO: stateGameTimetrial...\n", .{});
+            if (gamePlayTimetrial == null) {
+                gamePlayTimetrial = try StateGame.init(.eTimetrial, self, self.allocator);
+            }
+
+            const stater = gamePlayTimetrial.?.stater(self);
+            try stater.setup();
+
+            self.mCurrentState = stater;
+            self.mCurrentStateStr = "stateGameTimetrial";
         } else if (std.mem.eql(u8, newState, "stateOptions")) {
             std.debug.print("TODO: stateOptions...\n", .{});
         } else if (std.mem.eql(u8, newState, "stateHowtoplay")) {

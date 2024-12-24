@@ -33,7 +33,7 @@ pub const FloatingScore = struct {
 
     pub fn init(pw: *goWin.GoWindow, score: i32, x: f32, y: f32, z: f32) !Self {
         var tempFont = goFont.GoFont.init();
-        tempFont.setAll(pw, "media/fuentelcd.ttf", 60);
+        try tempFont.setAll(pw, "media/fuentelcd.ttf", 60);
 
         var buf: [32]u8 = undefined;
         const scoreTxt = try std.fmt.bufPrintZ(&buf, "{d}", .{score});
@@ -58,15 +58,15 @@ pub const FloatingScore = struct {
 
         self.mCurrentStep += 1;
 
-        const p: f32 = 1.0 - @divExact(self.mCurrentStep, self.mTotalSteps);
+        const p: f32 = 1.0 - @as(f32, @floatFromInt(self.mCurrentStep)) / @as(f32, @floatFromInt(self.mTotalSteps));
 
         const posX: f32 = 241 + self.x_ * 65;
         const posY: f32 = 41 + self.y_ * 65 - (1 - p) * 20;
 
-        try self.mScoreImage.drawEx(
-            posX,
-            posY,
-            self.z_,
+        _ = try self.mScoreImage.drawEx(
+            @intFromFloat(posX),
+            @intFromFloat(posY),
+            @intFromFloat(self.z_),
             1,
             1,
             0,
@@ -74,10 +74,10 @@ pub const FloatingScore = struct {
             scoreColor,
         );
 
-        try self.mScoreImageShadow.drawEx(
-            posX + 2,
-            posY + 2,
-            self.z_ - 0.1,
+        _ = try self.mScoreImageShadow.drawEx(
+            @as(i32, @intFromFloat(posX)) + 2,
+            @as(i32, @intFromFloat(posY)) + 2,
+            @as(i32, @intFromFloat(self.z_ - 0.1)),
             1,
             1,
             0,
@@ -85,10 +85,10 @@ pub const FloatingScore = struct {
             scoreColor,
         );
 
-        try self.mScoreImageShadow.drawEx(
-            posX - 2,
-            posY - 2,
-            self.z_ - 0.1,
+        _ = try self.mScoreImageShadow.drawEx(
+            @as(i32, @intFromFloat(posX)) - 2,
+            @as(i32, @intFromFloat(posY)) - 2,
+            @as(i32, @intFromFloat(self.z_ - 0.1)),
             1,
             1,
             0,

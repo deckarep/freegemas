@@ -18,7 +18,7 @@ pub const GoMusic = struct {
         }
     }
 
-    pub fn setSample(self: *Self, path: []const u8) void {
+    pub fn setSample(self: *Self, path: []const u8) !void {
         var buf: [128]u8 = undefined;
         const mPath = try std.fmt.bufPrintZ(
             &buf,
@@ -34,7 +34,7 @@ pub const GoMusic = struct {
 
     pub fn play(self: Self, vol: f32) void {
         if (self.mSample) |sample| {
-            _ = c.Mix_VolumeMusic(128.0 * vol);
+            _ = c.Mix_VolumeMusic(@intFromFloat(128.0 * vol));
             _ = c.Mix_FadeInMusic(sample, -1, 200);
         }
     }

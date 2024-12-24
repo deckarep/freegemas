@@ -61,9 +61,9 @@ pub const GoFont = struct {
         // TODO: check for errors
     }
 
-    pub fn setAll(self: *Self, pw: *goWin.GoWindow, path: [:0]const u8, size: usize) void {
+    pub fn setAll(self: *Self, pw: *goWin.GoWindow, path: [:0]const u8, size: usize) !void {
         self.setWindow(pw);
-        self.setPathAndSize(path, size);
+        try self.setPathAndSize(path, size);
     }
 
     pub fn getTextWidth(self: *Self, text: [:0]const u8) usize {

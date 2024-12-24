@@ -48,11 +48,11 @@ pub const ParticleSystem = struct {
     ) !Self {
         var o = Self{
             .mParticleQuantity = particleQuantity,
-            .mTotalSteps = totalSteps,
+            .mTotalSteps = @floatFromInt(totalSteps),
             .mPosX = x,
             .mPosY = y,
             .mScale = scale,
-            .mDistance = distance,
+            .mDistance = @floatFromInt(distance),
             .mColor = color,
             .mParticleList = std.ArrayList(Particle).init(allocator),
         };
@@ -67,7 +67,7 @@ pub const ParticleSystem = struct {
                 try utility.getRandomFloat(0, 360),
                 try utility.getRandomFloat(0, 1) * o.mDistance,
                 try utility.getRandomFloat(0, o.mScale) + 1.0,
-                try utility.getRandomFloat(0.1, 1) * o.mTotalSteps,
+                @intFromFloat(try utility.getRandomFloat(0.1, 1) * o.mTotalSteps),
                 if (try utility.getRandomFloat(0, 1) > 0.5) imgParticle1 else imgParticle2,
                 o.mColor,
             );

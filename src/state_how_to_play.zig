@@ -139,7 +139,6 @@ pub const StateHowToPlay = struct {
         self.mGame = game;
         return st.State{
             .ptr = self,
-            //.mGame = game,
             .setupFn = setup,
             .updateFn = update,
             .drawFn = draw,

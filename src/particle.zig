@@ -13,7 +13,7 @@ pub const Particle = struct {
     mCurrentStep: i32 = 0,
     mImage: *goImg.GoImage,
     mColor: c.SDL_Color,
-    mAlpha: u8,
+    mAlpha: u8 = 255,
     mPosX: f32 = 0,
     mPosY: f32 = 0,
     mSizeCoef: f32 = undefined,
@@ -36,23 +36,25 @@ pub const Particle = struct {
             self.mCurrentStep += 1;
         }
 
-        const tempPos: f32 = easings.easeOutQuart(self.mCurrentStep, 0, 1, self.mTotalSteps);
+        const tempPos: f32 = easings.easeOutQuart(@floatFromInt(self.mCurrentStep), 0, 1, @floatFromInt(self.mTotalSteps));
 
         if (tempPos >= lim) {
-            self.mAlpha = 255 * (1 - (tempPos - lim) / (1 - lim));
+            self.mAlpha = @intFromFloat(255.0 * (1 - (tempPos - lim) / (1 - lim)));
         } else {
             self.mAlpha = 255;
         }
 
         self.mSizeCoef = self.mSize * (1 - tempPos);
-        self.mPosX = tempPos * self.mDistance * @cos(self.mAngle * std.math.pi / 180) - self.mImage.getWidth() * self.mSizeCoef / 2;
-        self.mPosY = tempPos * self.mDistance * @sin(self.mAngle * std.math.pi / 180) - self.mImage.getHeight() * self.mSizeCoef / 2;
+        const imgWidth: f32 = @floatFromInt(self.mImage.getWidth());
+        const imgHeight: f32 = @floatFromInt(self.mImage.getHeight());
+        self.mPosX = tempPos * self.mDistance * @cos(self.mAngle * std.math.pi / 180.0) - imgWidth * self.mSizeCoef / 2.0;
+        self.mPosY = tempPos * self.mDistance * @sin(self.mAngle * std.math.pi / 180.0) - imgHeight * self.mSizeCoef / 2.0;
     }
 
     pub fn draw(self: Self, oX: i32, oY: i32) !void {
-        try self.mImage.drawEx(
-            oX + self.mPosX,
-            oY + self.mPosY,
+        _ = try self.mImage.drawEx(
+            oX + @as(i32, @intFromFloat(self.mPosX)),
+            oY + @as(i32, @intFromFloat(self.mPosY)),
             7,
             self.mSizeCoef,
             self.mSizeCoef,

@@ -1,9 +1,11 @@
+const std = @import("std");
 const gi = @import("game_indicators.zig");
 const gb = @import("game_board.zig");
 const goImg = @import("go_image.zig");
 const goFont = @import("go_font.zig");
 const goWin = @import("go_window.zig");
 const c = @import("cdefs.zig").c;
+const st = @import("state.zig");
 
 /// Instead of doing another level of inheritance, the ONLY thing
 /// different between StateGameEndless vs StateGameTimetrial
@@ -24,48 +26,59 @@ const tState = enum {
 };
 
 pub const StateGame = struct {
+    allocator: std.mem.Allocator = undefined,
+
     /// Game Style
     mStyle: tGameStyle,
 
     /// Current state
-    mState: tState,
+    mState: tState = undefined,
+
+    mGame: *goWin.GoWindow = undefined,
 
     /// Left side of UI
-    mGameIndicators: gi.GameIndicators,
+    mGameIndicators: gi.GameIndicators = undefined,
 
     /// Right side of the UI
-    mGameBoard: gb.GameBoard,
+    mGameBoard: gb.GameBoard = undefined,
 
     /// Starting time
-    mTimeStart: f64,
+    mTimeStart: f64 = undefined,
 
     /// Loading screen image
-    mImgLoadingBanner: goImg.GoImage,
+    mImgLoadingBanner: goImg.GoImage = undefined,
 
     // Background image
-    mImgBoard: goImg.GoImage,
+    mImgBoard: goImg.GoImage = undefined,
 
     /// Flag that indicates whether the user is clicking
-    mMousePressed: bool,
+    mMousePressed: bool = false,
 
     const Self = @This();
 
-    pub fn init() Self {
-        return Self{};
+    pub fn init(style: tGameStyle, g: *goWin.GoWindow, allocator: std.mem.Allocator) !Self {
+        return Self{
+            .allocator = allocator,
+            .mGame = g,
+            .mStyle = style,
+        };
     }
 
-    pub fn setup(self: *Self, p: *goWin.GoWindow) void {
+    pub fn setup(ptr: *anyopaque) anyerror!void {
+        const self: *Self = @alignCast(@ptrCast(ptr));
+
         self.setState(.eInitial);
 
         // Initialise game indicator
-        self.mGameIndicators.setGame(p, self);
+        self.mGameIndicators.setGame(self.mGame, self);
 
         // Initialise game board
-        self.mGameBoard.setGame(p, self);
+        self.mGameBoard = gb.GameBoard.init(self.allocator);
+        try self.mGameBoard.setGame(self.mGame, self);
 
         // Load the loading screen
         var tempLoadingFont = goFont.GoFont.init();
-        tempLoadingFont.setAll(self.mGame, "media/fuenteMenu.ttf", 64);
+        try tempLoadingFont.setAll(self.mGame, "media/fuenteMenu.ttf", 64);
 
         self.mImgLoadingBanner = tempLoadingFont.renderText(
             "Loading...",
@@ -78,7 +91,9 @@ pub const StateGame = struct {
         );
     }
 
-    pub fn update(self: *Self) !void {
+    pub fn update(ptr: *anyopaque) !void {
+        const self: *Self = @alignCast(@ptrCast(ptr));
+
         switch (self.mStyle) {
             .eEndless => try self.updateEndless(),
             .eTimetrial => try self.updateTimetrial(),
@@ -102,10 +117,10 @@ pub const StateGame = struct {
             self.mGameIndicators.disableTime();
 
             // Reset the scoreboard
-            self.mGameIndicators.setScore(0);
+            try self.mGameIndicators.setScore(0);
         }
 
-        self.mGameBoard.update();
+        try self.mGameBoard.update();
     }
 
     pub fn updateTimetrial(self: *Self) !void {
@@ -125,23 +140,25 @@ pub const StateGame = struct {
             self.mGameIndicators.enableTime();
 
             // Reset the scoreboard
-            self.mGameIndicators.setScore(0);
+            try self.mGameIndicators.setScore(0);
         }
 
         // Compute remaining time
-        const remainingTime: f64 = (self.mTimeStart - @as(f64, @floatCast(c.SDL_GetTicks()))) / 1000.0;
+        const remainingTime: f64 = (self.mTimeStart - @as(f64, @floatFromInt(c.SDL_GetTicks()))) / 1000.0;
 
-        self.mGameIndicators.updateTime(remainingTime);
+        try self.mGameIndicators.updateTime(remainingTime);
 
         if (remainingTime <= 0) {
             // Tell the board that the game ended with the given score
-            self.mGameBoard.endGame(self.mGameIndicators.getScore());
+            try self.mGameBoard.endGame(self.mGameIndicators.getScore());
         }
 
-        self.mGameBoard.update();
+        try self.mGameBoard.update();
     }
 
-    pub fn draw(self: *Self) !void {
+    pub fn draw(ptr: *anyopaque) anyerror!void {
+        const self: *Self = @alignCast(@ptrCast(ptr));
+
         // On this state, show the loading screen and switch the state
         if (self.mState == .eInitial) {
             try self.mImgLoadingBanner.draw(280, 250, 2);
@@ -159,14 +176,22 @@ pub const StateGame = struct {
         try self.mGameBoard.draw();
     }
 
-    pub fn buttonDown(self: *Self, button: c.SDL_Keycode) void {
+    pub fn buttonDown(ptr: *anyopaque, button: c.SDL_Keycode) anyerror!void {
+        const self: *Self = @alignCast(@ptrCast(ptr));
+
         if (button == c.SDLK_ESCAPE) {
-            self.mGame.changeState("stateMainMenu");
+            try self.mGame.changeState("stateMainMenu");
         } else if (button == c.SDLK_h) {
-            self.showHint();
+            try self.showHint();
         } else {
-            self.mGameBoard.buttonDown(button);
+            try self.mGameBoard.buttonDown(button);
         }
+    }
+
+    pub fn buttonUp(ptr: *anyopaque, button: c.SDL_Keycode) anyerror!void {
+        _ = ptr;
+        _ = button;
+        // No implementation at this time.
     }
 
     // void StateGame::controllerButtonDown(Uint8 button)
@@ -180,7 +205,9 @@ pub const StateGame = struct {
     //     }
     // }
 
-    pub fn mouseButtonDown(self: *Self, button: u8) void {
+    pub fn mouseDown(ptr: *anyopaque, button: u8) anyerror!void {
+        const self: *Self = @alignCast(@ptrCast(ptr));
+
         // Left mouse button was pressed
         if (button == c.SDL_BUTTON_LEFT) {
             self.mMousePressed = true;
@@ -190,14 +217,16 @@ pub const StateGame = struct {
             const mouseY = self.mGame.getMouseY();
 
             // Inform the UI
-            self.mGameIndicators.click(mouseX, mouseY);
+            try self.mGameIndicators.click(mouseX, mouseY);
 
             // Inform the board
-            self.mGameBoard.mouseButtonDown(mouseX, mouseY);
+            try self.mGameBoard.mouseButtonDown(mouseX, mouseY);
         }
     }
 
-    pub fn mouseButtonUp(self: *Self, button: u8) void {
+    pub fn mouseUp(ptr: *anyopaque, button: u8) anyerror!void {
+        const self: *Self = @alignCast(@ptrCast(ptr));
+
         // Left mouse button was released
         if (button == c.SDL_BUTTON_LEFT) {
             self.mMousePressed = false;
@@ -207,7 +236,7 @@ pub const StateGame = struct {
             const mouseY = self.mGame.getMouseY();
 
             // Inform the board
-            self.mGameBoard.mouseButtonUp(mouseX, mouseY);
+            try self.mGameBoard.mouseButtonUp(mouseX, mouseY);
         }
     }
 
@@ -217,34 +246,48 @@ pub const StateGame = struct {
 
     // ----------------------------------------------------------------------------
 
-    fn loadResources(self: *Self) !void {
+    pub fn loadResources(self: *Self) !void {
         // Load the background image
-        try self.mImgBoard.setWindowAndPath(self.mGame, "media/board.png");
+        _ = try self.mImgBoard.setWindowAndPath(self.mGame, "media/board.png");
 
         try self.mGameIndicators.loadResources();
         try self.mGameBoard.loadResources();
     }
 
-    fn resetGame(self: *Self) void {
-        self.mGameIndicators.setScore(0);
+    pub fn resetGame(self: *Self) !void {
+        try self.mGameIndicators.setScore(0);
         self.resetTime();
-        self.mGameBoard.resetGame();
+        try self.mGameBoard.resetGame();
     }
 
-    fn resetTime(self: *Self) void {
+    pub fn resetTime(self: *Self) void {
         // Default time is 2 minutes
         self.mTimeStart = @as(f64, @floatFromInt(c.SDL_GetTicks())) + 2 * 60 * 1000;
     }
 
-    fn showHint(self: *Self) void {
-        self.mGameBoard.showHint();
+    pub fn showHint(self: *Self) !void {
+        try self.mGameBoard.showHint();
     }
 
-    fn increaseScore(self: *Self, amount: i32) void {
-        self.mGameIndicators.increaseScore(amount);
+    pub fn increaseScore(self: *Self, amount: i32) !void {
+        try self.mGameIndicators.increaseScore(amount);
     }
 
-    fn getScore(self: Self) i32 {
+    pub fn getScore(self: Self) i32 {
         return self.mGameIndicators.getScore();
+    }
+
+    pub fn stater(self: *Self, game: *goWin.GoWindow) st.State {
+        self.mGame = game;
+        return st.State{
+            .ptr = self,
+            .setupFn = setup,
+            .updateFn = update,
+            .drawFn = draw,
+            .buttonDownFn = buttonDown,
+            .buttonUpFn = buttonUp,
+            .mouseDownFn = mouseDown,
+            .mouseUpFn = mouseUp,
+        };
     }
 };

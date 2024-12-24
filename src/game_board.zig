@@ -9,6 +9,7 @@ const fs = @import("floating_score.zig");
 const easings = @import("easings.zig");
 const gh = @import("game_hint.zig");
 const ps = @import("particle_system.zig");
+const sg = @import("state_game.zig");
 
 pub const tState = enum {
     eNoBoard,
@@ -29,10 +30,11 @@ pub const GameBoard = struct {
 
     mState: tState = .eNoBoard,
 
-    mStateGame: *StateGame,
+    // Weak pointer back to parent.
+    mStateGame: *sg.StateGame = undefined,
 
     // Parent game.
-    mGame: *goWin.GoWindow,
+    mGame: *goWin.GoWindow = undefined,
 
     /// Coordinates for the selected square (if any)
     mSelectedSquareFirst: co.Coord,
@@ -49,7 +51,10 @@ pub const GameBoard = struct {
     /// Hint
     mHint: gh.GameHint,
 
-    /// Imágenes de las partículas
+    // Track if a hint is used, to prevent score increases when so
+    mHintUsed: bool = false,
+
+    /// Particle images.
     mImgParticle1: goImg.GoImage,
     mImgParticle2: goImg.GoImage,
 
@@ -89,15 +94,13 @@ pub const GameBoard = struct {
     mSelectorX: i32 = 3,
     mSelectorY: i32 = 3,
 
-    // Track if a hint is used, to prevent score increases when so
-    mHintUsed: bool = false,
-
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
             .mFloatingScores = std.ArrayList(fs.FloatingScore).init(allocator),
+            .mParticleSysList = std.ArrayList(ps.ParticleSystem).init(allocator),
         };
     }
 
@@ -112,9 +115,9 @@ pub const GameBoard = struct {
     }
 
     // Public below
-    pub fn setGame(self: *Self, game: *goWin.GoWindow, stateGame: u8) !void {
+    pub fn setGame(self: *Self, game: *goWin.GoWindow, stateGame: *sg.StateGame) !void {
         self.mGame = game;
-        //self.mStateGame = stateGame;
+        self.mStateGame = stateGame;
 
         self.mBoard = brd.Board.init(self.allocator);
         try self.mBoard.generate();
@@ -123,7 +126,7 @@ pub const GameBoard = struct {
         self.mAnimationCurrentStep = 0;
     }
 
-    pub fn resetGame(self: *Self) void {
+    pub fn resetGame(self: *Self) !void {
         // Game can only be reset on the steady state, or when the Game.has ended
         if (self.mState != .eSteady and self.mState != .eShowingScoreTable)
             return;
@@ -135,7 +138,7 @@ pub const GameBoard = struct {
         // If there's a board on screen, make it disappear first
         if (self.mState != .eShowingScoreTable) {
             // Drop all gems
-            self.mBoard.dropAllGems();
+            try self.mBoard.dropAllGems();
 
             // Switch state
             self.mState = .eBoardDisappearing;
@@ -150,12 +153,12 @@ pub const GameBoard = struct {
         }
     }
 
-    pub fn endGame(self: *Self, score: i32) void {
+    pub fn endGame(self: *Self, score: i32) !void {
         if (self.mState == .eTimeFinished or self.mState == .eShowingScoreTable) {
             return;
         }
 
-        self.mBoard.dropAllGems();
+        try self.mBoard.dropAllGems();
         self.mState = .eTimeFinished;
 
         // TODO: Generate the score table
@@ -183,10 +186,10 @@ pub const GameBoard = struct {
         try self.mHint.setWindow(self.mGame);
 
         // Initialise the sounds
-        self.mGame.getGameSounds().loadResources();
+        try self.mGame.getGameSounds().loadResources();
     }
 
-    pub fn update(self: *Self) void {
+    pub fn update(self: *Self) !void {
         // Default state, do nothing
         if (self.mState == .eSteady) {
             self.mMultiplier = 0;
@@ -219,10 +222,10 @@ pub const GameBoard = struct {
 
                 // Swap the gems in the board
                 self.mBoard.swap(
-                    self.mSelectedSquareFirst.x,
-                    self.mSelectedSquareFirst.y,
-                    self.mSelectedSquareSecond.x,
-                    self.mSelectedSquareSecond.y,
+                    self.mSelectedSquareFirst.x.?,
+                    self.mSelectedSquareFirst.y.?,
+                    self.mSelectedSquareSecond.x.?,
+                    self.mSelectedSquareSecond.y.?,
                 );
 
                 // Increase the mMultiplier
@@ -232,7 +235,7 @@ pub const GameBoard = struct {
                 self.playMatchSound();
 
                 // Create floating scores for the matching group
-                self.createFloatingScores();
+                try self.createFloatingScores();
             }
         }
 
@@ -251,7 +254,7 @@ pub const GameBoard = struct {
                     for (gs.super.items, 0..) |*m, i| {
                         for (m.super.items, 0..) |_, j| {
                             const crd = gs.at(i, j);
-                            self.mBoard.del(crd.x, crd.y);
+                            self.mBoard.del(crd.x.?, crd.y.?);
                         }
                     }
 
@@ -263,7 +266,7 @@ pub const GameBoard = struct {
                 }
 
                 // Calculate fall movements
-                self.mBoard.calcFallMovements();
+                try self.mBoard.calcFallMovements();
 
                 // Reset the animation
                 self.mAnimationCurrentStep = 0;
@@ -300,7 +303,7 @@ pub const GameBoard = struct {
                 self.mGroupedSquares = try self.mBoard.check();
 
                 // If there are...
-                if (!self.mGroupedSquares.empty()) {
+                if (!self.mGroupedSquares.?.empty()) {
                     // Increase the score mMultiplier
                     self.mMultiplier += 1;
 
@@ -320,15 +323,16 @@ pub const GameBoard = struct {
                 else {
                     const sols = try self.mBoard.solutions();
                     defer sols.deinit();
-                    if (sols.empty()) {
+                    // if (sols.empty())
+                    if (sols.items.len == 0) {
                         if (std.mem.eql(u8, self.mGame.getCurrentState(), "stateGameEndless")) {
-                            self.endGame(self.mStateGame.getScore());
+                            try self.endGame(self.mStateGame.getScore());
                         } else {
                             // Make the board disappear
                             self.mState = .eBoardDisappearing;
 
                             // Make all the gems want to go outside the board
-                            self.mBoard.dropAllGems();
+                            try self.mBoard.dropAllGems();
                         }
                     }
                 }
@@ -346,7 +350,7 @@ pub const GameBoard = struct {
                 self.mAnimationCurrentStep = 0;
 
                 // Generate a brand new board
-                self.mBoard.generate();
+                try self.mBoard.generate();
 
                 // Switch state
                 self.mState = .eBoardAppearing;
@@ -375,7 +379,7 @@ pub const GameBoard = struct {
         self.cullParticleSystems();
     }
 
-    pub fn draw(self: *Self) void {
+    pub fn draw(self: *Self) !void {
         if (self.mGame.getMouseActive()) {
             // Get mouse position
             const mX = self.mGame.getMouseX();
@@ -384,8 +388,8 @@ pub const GameBoard = struct {
             // Move the selector to the mouse if it is over a gem
             if (self.overGem(mX, mY)) {
                 const mouseCoords = self.getCoord(mX, mY);
-                self.mSelectorX = mouseCoords.x;
-                self.mSelectorY = mouseCoords.y;
+                self.mSelectorX = @intCast(mouseCoords.x.?);
+                self.mSelectorY = @intCast(mouseCoords.y.?);
             }
         }
 
@@ -398,9 +402,9 @@ pub const GameBoard = struct {
 
         // Draw the selector if a gem has been selected
         if (self.mState == .eGemSelected) {
-            try self.mImgSelector.drawEx(
-                241 + self.mSelectedSquareFirst.x * 65,
-                41 + self.mSelectedSquareFirst.y * 65,
+            _ = try self.mImgSelector.drawEx(
+                241 + @as(i32, @intCast(self.mSelectedSquareFirst.x.?)) * 65,
+                41 + @as(i32, @intCast(self.mSelectedSquareFirst.y.?)) * 65,
                 4,
                 1,
                 1,
@@ -461,18 +465,18 @@ pub const GameBoard = struct {
                 }
 
                 // WARN: hardcoded bullshit.
-                var imgX: i32 = posX + i * 65;
-                var imgY: i32 = posY + j * 65;
+                var imgX: i32 = posX + @as(i32, @intCast(i)) * 65;
+                var imgY: i32 = posY + @as(i32, @intCast(j)) * 65;
                 var imgAlpha: u8 = 255;
 
                 // When the board is first appearing, all the gems are falling
                 if (self.mState == .eBoardAppearing) {
-                    imgY = easings.easeOutQuad(
+                    imgY = @intFromFloat(easings.easeOutQuad(
                         @floatFromInt(self.mAnimationCurrentStep),
                         @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
                         @floatFromInt(self.mBoard.squares[i][j].destY * 65),
                         @floatFromInt(self.mAnimationLongTotalSteps),
-                    );
+                    ));
                 }
 
                 // When two correct gems have been selected, they switch positions
@@ -480,36 +484,36 @@ pub const GameBoard = struct {
 
                     // If the current gem is the first selected square
                     if (self.mSelectedSquareFirst.equals(i, j)) {
-                        imgX = easings.easeOutQuad(
+                        imgX = @intFromFloat(easings.easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posX + i * 65),
-                            @floatFromInt((self.mSelectedSquareSecond.x - self.mSelectedSquareFirst.x) * 65),
+                            @floatFromInt((self.mSelectedSquareSecond.x.? - self.mSelectedSquareFirst.x.?) * 65),
                             @floatFromInt(self.mAnimationShortTotalSteps),
-                        );
+                        ));
 
-                        imgY = easings.easeOutQuad(
+                        imgY = @intFromFloat(easings.easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posY + j * 65),
-                            @floatFromInt((self.mSelectedSquareSecond.y - self.mSelectedSquareFirst.y) * 65),
+                            @floatFromInt((self.mSelectedSquareSecond.y.? - self.mSelectedSquareFirst.y.?) * 65),
                             @floatFromInt(self.mAnimationShortTotalSteps),
-                        );
+                        ));
                     }
 
                     // If the current gem is the second selected square
                     else if (self.mSelectedSquareSecond.equals(i, j)) {
-                        imgX = easings.easeOutQuad(
+                        imgX = @intFromFloat(easings.easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posX + i * 65),
-                            @floatFromInt((self.mSelectedSquareFirst.x - self.mSelectedSquareSecond.x) * 65),
+                            @floatFromInt((self.mSelectedSquareFirst.x.? - self.mSelectedSquareSecond.x.?) * 65),
                             @floatFromInt(self.mAnimationShortTotalSteps),
-                        );
+                        ));
 
-                        imgY = easings.easeOutQuad(
+                        imgY = @intFromFloat(easings.easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posY + j * 65),
-                            @floatFromInt((self.mSelectedSquareFirst.y - self.mSelectedSquareSecond.y) * 65),
+                            @floatFromInt((self.mSelectedSquareFirst.y.? - self.mSelectedSquareSecond.y.?) * 65),
                             @floatFromInt(self.mAnimationShortTotalSteps),
-                        );
+                        ));
                     }
                 }
 
@@ -525,29 +529,29 @@ pub const GameBoard = struct {
                 // When matched gems have disappeared, spaces in the board must be filled
                 else if (self.mState == .eBoardFilling) {
                     if (self.mBoard.squares[i][j].mustFall) {
-                        imgY = easings.easeOutQuad(
+                        imgY = @intFromFloat(easings.easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
                             @floatFromInt(self.mBoard.squares[i][j].destY * 65),
                             @floatFromInt(self.mAnimationShortTotalSteps),
-                        );
+                        ));
                     }
                 }
 
                 // When there are no more matching movements, the board disappears
                 else if (self.mState == .eBoardDisappearing or self.mState == .eTimeFinished) {
-                    imgY = easings.easeInQuad(
+                    imgY = @intFromFloat(easings.easeInQuad(
                         @floatFromInt(self.mAnimationCurrentStep),
                         @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
                         @floatFromInt(self.mBoard.squares[i][j].destY * 65),
                         @floatFromInt(self.mAnimationLongTotalSteps),
-                    );
+                    ));
                 } else if (self.mState == .eShowingScoreTable) {
                     continue;
                 }
 
                 // If we get down to here, impossible for img to be null.
-                try img.?.drawEx(
+                _ = try img.?.drawEx(
                     imgX,
                     imgY,
                     3,
@@ -566,23 +570,23 @@ pub const GameBoard = struct {
         }
     }
 
-    pub fn mouseButtonDown(self: *Self, mouseX: i32, mouseY: i32) void {
+    pub fn mouseButtonDown(self: *Self, mouseX: i32, mouseY: i32) !void {
         // A gem was clicked
         if (self.overGem(mouseX, mouseY)) {
             const mouseCoords = self.getCoord(mouseX, mouseY);
-            self.mSelectorX = mouseCoords.x;
-            self.mSelectorY = mouseCoords.y;
-            self.selectGem();
+            self.mSelectorX = @intCast(mouseCoords.x.?);
+            self.mSelectorY = @intCast(mouseCoords.y.?);
+            try self.selectGem();
         }
     }
 
-    pub fn mouseButtonUp(self: *Self, mX: i32, mY: i32) void {
+    pub fn mouseButtonUp(self: *Self, mX: i32, mY: i32) !void {
         if (self.mState == .eGemSelected) {
             // Get the coordinates where the mouse was released
             const res = self.getCoord(mX, mY);
 
             // If the square is different from the previously selected one
-            if (res != self.mSelectedSquareFirst and self.checkSelectedSquare()) {
+            if (res.notEqls(self.mSelectedSquareFirst) and try self.checkSelectedSquare()) {
                 // Switch the state and reset the animation
                 self.mState = .eGemSwitching;
                 self.mAnimationCurrentStep = 0;
@@ -590,7 +594,7 @@ pub const GameBoard = struct {
         }
     }
 
-    pub fn buttonDown(self: *Self, button: c.SDL_Keycode) void {
+    pub fn buttonDown(self: *Self, button: c.SDL_Keycode) !void {
         switch (button) {
             c.SDLK_LEFT => {
                 self.mGame.getGameSounds().playSoundSelect();
@@ -613,7 +617,7 @@ pub const GameBoard = struct {
             },
 
             c.SDLK_SPACE => {
-                self.selectGem();
+                try self.selectGem();
             },
             else => {},
         }
@@ -651,13 +655,13 @@ pub const GameBoard = struct {
     fn getCoord(self: Self, mX: i32, mY: i32) co.Coord {
         _ = self;
         return co.Coord{
-            .x = (mX - 241) / 65,
-            .y = (mY - 41) / 65,
+            .x = @intCast(@divExact((mX - 241), 65)),
+            .y = @intCast(@divExact((mY - 41), 65)),
         };
     }
 
     // // Checks if the newly selected square has formed a matching groups
-    fn checkSelectedSquare(self: *Self) bool {
+    fn checkSelectedSquare(self: *Self) !bool {
         // Get the selected square
         // WARN: hardcoded nonsense here, too.
         self.mSelectedSquareSecond = self.getCoord(
@@ -666,12 +670,17 @@ pub const GameBoard = struct {
         );
 
         // If it's a contiguous square
-        if (@abs(self.mSelectedSquareFirst.x - self.mSelectedSquareSecond.x) +
-            @abs(self.mSelectedSquareFirst.y - self.mSelectedSquareSecond.y) == 1)
+        if (@abs(self.mSelectedSquareFirst.x.? - self.mSelectedSquareSecond.x.?) +
+            @abs(self.mSelectedSquareFirst.y.? - self.mSelectedSquareSecond.y.?) == 1)
         {
             // Create a temporal board with the movement already performed
             var temporal = self.mBoard;
-            temporal.swap(self.mSelectedSquareFirst.x, self.mSelectedSquareFirst.y, self.mSelectedSquareSecond.x, self.mSelectedSquareSecond.y);
+            temporal.swap(
+                self.mSelectedSquareFirst.x.?,
+                self.mSelectedSquareFirst.y.?,
+                self.mSelectedSquareSecond.x.?,
+                self.mSelectedSquareSecond.y.?,
+            );
 
             // Check if there are grouped gems in that new board
             if (self.mGroupedSquares != null) {
@@ -706,26 +715,26 @@ pub const GameBoard = struct {
     }
 
     // // Activates the currently selected square for matching
-    fn selectGem(self: *Self) void {
+    fn selectGem(self: *Self) !void {
         self.mGame.getGameSounds().playSoundSelect();
 
         if (self.mState == .eSteady) {
             self.mState = .eGemSelected;
 
-            self.mSelectedSquareFirst.x = self.mSelectorX;
-            self.mSelectedSquareFirst.y = self.mSelectorY;
+            self.mSelectedSquareFirst.x = @intCast(self.mSelectorX);
+            self.mSelectedSquareFirst.y = @intCast(self.mSelectorY);
         }
         // If there was previous a gem selected
         else if (self.mState == .eGemSelected) {
             // If the newly clicked gem is a winning one
-            if (self.checkSelectedSquare()) {
+            if (try self.checkSelectedSquare()) {
                 // Switch the state and reset the animation
                 self.mState = .eGemSwitching;
                 self.mAnimationCurrentStep = 0;
             } else {
                 self.mState = .eSteady;
-                self.mSelectedSquareFirst.x = -1;
-                self.mSelectedSquareFirst.y = -1;
+                self.mSelectedSquareFirst.x = null;
+                self.mSelectedSquareFirst.y = null;
             }
         }
     }
@@ -741,27 +750,27 @@ pub const GameBoard = struct {
         // For each match in the group of matched squares
         if (self.mGroupedSquares) |gs| {
             for (gs.super.items) |*m| {
-                const score = m.size() * pointsPerGem * self.mMultiplier;
+                const score = @as(i32, @intCast(m.size())) * pointsPerGem * self.mMultiplier;
 
                 // Create a new floating score image
                 try self.mFloatingScores.append(try fs.FloatingScore.init(
                     self.mGame,
                     score,
-                    m.midSquare().x.?,
-                    m.midSquare().y.?,
+                    @floatFromInt(m.midSquare().x.?),
+                    @floatFromInt(m.midSquare().y.?),
                     80,
                 ));
 
                 // Create a new particle system for it to appear over the square
                 for (0..m.size()) |i| {
-                    self.mParticleSysList.append(ps.ParticleSystem.init(
+                    try self.mParticleSysList.append(try ps.ParticleSystem.init(
                         &self.mImgParticle1,
                         &self.mImgParticle2,
                         50,
                         50,
                         // WARN: Hardcoded bullshit again.
-                        241 + m.super.items[i].x * 65 + 32,
-                        41 + m.super.items[i].y * 65 + 32,
+                        241 + @as(i32, @intCast(m.super.items[i].x.?)) * 65 + 32,
+                        41 + @as(i32, @intCast(m.super.items[i].y.?)) * 65 + 32,
                         60,
                         0.5,
                         c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
@@ -770,14 +779,14 @@ pub const GameBoard = struct {
                 }
 
                 // Bump the score.
-                self.mStateGame.increaseScore(score);
+                try self.mStateGame.increaseScore(score);
             }
         }
     }
 
     /// Cleans up any floating scores that have ended their animations.
     /// We expect the list to be very small during gameplay, hence the small buffer size.
-    fn cullFloatingScores(self: *Self) !void {
+    fn cullFloatingScores(self: *Self) void {
         var floaterIndicesBuf: [10]usize = undefined;
         var floatIdx: usize = 0;
 
@@ -803,7 +812,7 @@ pub const GameBoard = struct {
     /// Cleans up any particle systems that are no longer alive.
     /// We expect the list to be very small during gameplay, hence the small buffer size.
     /// NOTE: This code is nearly identical to cullFloatingScores, perhaps I can simplify.
-    fn cullParticleSystems(self: *Self) !void {
+    fn cullParticleSystems(self: *Self) void {
         var psIndicesBuf: [10]usize = undefined;
         var psIdx: usize = 0;
 
