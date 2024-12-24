@@ -59,7 +59,7 @@ pub const Particle = struct {
             self.mSizeCoef,
             self.mSizeCoef,
             0,
-            255,
+            self.mAlpha,
             self.mColor,
         );
     }

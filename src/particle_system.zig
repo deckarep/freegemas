@@ -80,7 +80,7 @@ pub const ParticleSystem = struct {
         self.mParticleList.deinit();
     }
 
-    pub fn ended(self: Self) bool {
+    pub inline fn ended(self: Self) bool {
         return !self.mActive;
     }
 

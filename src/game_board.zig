@@ -528,7 +528,9 @@ pub const GameBoard = struct {
                 else if (self.mState == .eGemDisappearing) {
                     if (self.mGroupedSquares) |gs| {
                         if (gs.matched(co.Coord{ .x = i, .y = j })) {
-                            imgAlpha = 255 * (1 - @as(u8, @intCast(@divTrunc(self.mAnimationCurrentStep, self.mAnimationShortTotalSteps))));
+                            const cs: f32 = @floatFromInt(self.mAnimationCurrentStep);
+                            const ts: f32 = @floatFromInt(self.mAnimationShortTotalSteps);
+                            imgAlpha = @intFromFloat(255.0 * (1.0 - cs / ts));
                         }
                     }
                 }
