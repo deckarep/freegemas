@@ -132,6 +132,18 @@ pub const GameIndicators = struct {
             const minutes: i32 = @intFromFloat(self.mRemainingTime / 60);
             const seconds: i32 = @as(i32, @intFromFloat(self.mRemainingTime)) - minutes * 60;
 
+            // Compute prev min/sec to compare and not generate so much work.
+            const prevMin: i32 = @intFromFloat(self.mRemainingTimePrev / 60);
+            const prevSec: i32 = @as(i32, @intFromFloat(self.mRemainingTimePrev)) - minutes * 60;
+
+            // r.c. - added second check, because the time only needs updating when either
+            // minutes/seconds differ but since self.mRemainingTime and self.mRemainingTimePrev
+            // are stored as f64 they are nearly always different due to precision not being
+            // accounted for.
+            if (minutes == prevMin and seconds == prevSec) {
+                return;
+            }
+
             var buf: [32]u8 = undefined;
             const txtTime = try std.fmt.bufPrintZ(
                 &buf,
@@ -143,6 +155,7 @@ pub const GameIndicators = struct {
                 },
             );
 
+            std.debug.print("time remaining: {s}\n", .{txtTime});
             self.mImgTime = self.mFontTime.renderText(txtTime, timeTxtColor);
             self.mRemainingTimePrev = self.mRemainingTime;
         }
@@ -168,13 +181,13 @@ pub const GameIndicators = struct {
         // Draw the score
         try self.mImgScoreBackground.draw(17, 124, 2);
         try self.mImgScoreHeader.draw(17 + @divTrunc(self.mImgScoreBackground.getWidth(), 2) - @divTrunc(self.mImgScoreHeader.getWidth(), 2), 84, 3);
-        try self.mImgScore.draw(197 - self.mImgScore.getWidth(), 127, 2);
+        try self.mImgScore.draw(197 - self.mImgScore.getWidth(), 127, 3);
 
         // Draw the time
         if (self.mTimeEnabled) {
             try self.mImgTimeBackground.draw(17, 230, 2);
             try self.mImgTimeHeader.draw(17 + @divTrunc(self.mImgTimeBackground.getWidth(), 2) - @divTrunc(self.mImgTimeHeader.getWidth(), 2), 190, 3);
-            try self.mImgTime.draw(190 - self.mImgTime.getWidth(), 232, 2);
+            try self.mImgTime.draw(190 - self.mImgTime.getWidth(), 232, 3);
         }
     }
 
