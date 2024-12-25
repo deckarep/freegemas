@@ -54,7 +54,7 @@ pub const GameHint = struct {
             self.mShowingHint = false;
         } else {
             // Get the opacity percentage
-            const p1: f32 = 1 - @as(f32, @floatFromInt(@divExact(self.mAnimationCurrentStep, self.mAnimationTotalSteps)));
+            const p1: f32 = 1 - @as(f32, @floatFromInt(@divTrunc(self.mAnimationCurrentStep, self.mAnimationTotalSteps)));
 
             // Get the location
             const pX1: f32 = 241 + @as(f32, @floatFromInt(self.mHintLocation.x.?)) * 65 - @as(f32, @floatFromInt(self.mImgSelector.getWidth())) * (2 - p1) / 2 + 65 / 2;

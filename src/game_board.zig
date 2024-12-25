@@ -472,7 +472,7 @@ pub const GameBoard = struct {
 
                 // When the board is first appearing, all the gems are falling
                 if (self.mState == .eBoardAppearing) {
-                    imgY = @intFromFloat(easings.easeOutQuad(
+                    imgY = @intFromFloat(easings.easeInQuad( //easeOutQuad(
                         @floatFromInt(self.mAnimationCurrentStep),
                         @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
                         @floatFromInt(self.mBoard.squares[i][j].destY * 65),
@@ -539,7 +539,7 @@ pub const GameBoard = struct {
                 // When matched gems have disappeared, spaces in the board must be filled
                 else if (self.mState == .eBoardFilling) {
                     if (self.mBoard.squares[i][j].mustFall) {
-                        imgY = @intFromFloat(easings.easeOutQuad(
+                        imgY = @intFromFloat(easings.easeInQuad( //easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
                             @floatFromInt(self.mBoard.squares[i][j].destY * 65),

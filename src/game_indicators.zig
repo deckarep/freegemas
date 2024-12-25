@@ -167,13 +167,13 @@ pub const GameIndicators = struct {
 
         // Draw the score
         try self.mImgScoreBackground.draw(17, 124, 2);
-        try self.mImgScoreHeader.draw(17 + @divExact(self.mImgScoreBackground.getWidth(), 2) - @divExact(self.mImgScoreHeader.getWidth(), 2), 84, 3);
+        try self.mImgScoreHeader.draw(17 + @divTrunc(self.mImgScoreBackground.getWidth(), 2) - @divTrunc(self.mImgScoreHeader.getWidth(), 2), 84, 3);
         try self.mImgScore.draw(197 - self.mImgScore.getWidth(), 127, 2);
 
         // Draw the time
         if (self.mTimeEnabled) {
             try self.mImgTimeBackground.draw(17, 230, 2);
-            try self.mImgTimeHeader.draw(17 + @divExact(self.mImgTimeBackground.getWidth(), 2) - @divExact(self.mImgTimeHeader.getWidth(), 2), 190, 3);
+            try self.mImgTimeHeader.draw(17 + @divTrunc(self.mImgTimeBackground.getWidth(), 2) - @divTrunc(self.mImgTimeHeader.getWidth(), 2), 190, 3);
             try self.mImgTime.draw(190 - self.mImgTime.getWidth(), 232, 2);
         }
     }

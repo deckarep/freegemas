@@ -278,9 +278,13 @@ pub const Board = struct {
 
     /// Checks if current Board has any possible valid movements.
     /// NOTE: Caller owns and must .deinit the returned results.
+    /// This function is expensive and costs about 120ms+ in debug mode.
+    /// And then costs about 13-19ms in ReleaseFast mode.
+    /// It does contribute to a little bit of frame stutter in debug mode.
     pub fn solutions(self: *Self) !std.ArrayList(co.Coord) {
+        const start = try std.time.Instant.now();
         std.debug.print("solutions started...\n", .{});
-        defer std.debug.print("solutions finished...\n", .{});
+
         var results = std.ArrayList(co.Coord).init(self.allocator);
 
         const matches = try self.check();
@@ -288,6 +292,12 @@ pub const Board = struct {
 
         if (!matches.empty()) {
             try results.append(co.Coord{ .x = null, .y = null });
+
+            // Measure elapsed.
+            const end = try std.time.Instant.now();
+            const elapsed: f64 = @floatFromInt(end.since(start));
+            std.debug.print("solutions finished in {d:.3}ms...\n", .{elapsed / std.time.ns_per_ms});
+
             return results;
         }
 
@@ -357,6 +367,10 @@ pub const Board = struct {
             }
         }
 
+        // Measure elapsed.
+        const end = try std.time.Instant.now();
+        const elapsed: f64 = @floatFromInt(end.since(start));
+        std.debug.print("solutions finished in {d:.3}ms...\n", .{elapsed / std.time.ns_per_ms});
         return results;
     }
 
