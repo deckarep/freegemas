@@ -1,6 +1,6 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/deckarep/freegemas/static/images/header_logo.png"><br>
-    <img src="https://raw.githubusercontent.com/deckarep/freegemas/static/images/header_gems.png"><br>
+    <img src="https://github.com/deckarep/freegemas/blob/zig-version/static/images/header_logo.png"><br>
+    <img src="https://github.com/deckarep/freegemas/blob/zig-version/static/images/header_gems.png"><br>
 </p>
 
 __Freegemas__ is a GPL2.0 open source version of the well known Bejeweled, for MacOS and ~GNU/Linux, Windows, Playstation Vita~. It's written in [Zig 0.13.0](https://ziglang.org) using [SDL2](https://www.libsdl.org/). This version is a Zig-based port of the [original C++ version by Jose Tomas Tocino](https://github.com/JoseTomasTocino/freegemas). Since the original license is an
