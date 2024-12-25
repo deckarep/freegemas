@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/deckarep/freegemas/media/images/header_logo.png"><br>
+    <img src="https://raw.githubusercontent.com/deckarep/freegemas/static/images/header_logo.png"><br>
     <img src="https://raw.githubusercontent.com/deckarep/freegemas/static/images/header_gems.png"><br>
 </p>
 
@@ -7,7 +7,7 @@ __Freegemas__ is a GPL2.0 open source version of the well known Bejeweled, for M
 open source copyleft license this repo is required to use the same exact license.
 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/deckarep/freegemas/static/images/screenshot_1.png">
+    <img src="https://github.com/deckarep/freegemas/blob/zig-version/static/images/screenshot_1.png">
 </p>    
         
 ## Installation on OS X
