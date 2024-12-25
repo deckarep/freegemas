@@ -155,7 +155,6 @@ pub const GameIndicators = struct {
                 },
             );
 
-            std.debug.print("time remaining: {s}\n", .{txtTime});
             self.mImgTime = self.mFontTime.renderText(txtTime, timeTxtColor);
             self.mRemainingTimePrev = self.mRemainingTime;
         }
