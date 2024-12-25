@@ -204,3 +204,8 @@ UpgradeLog*.htm
 
 # Microsoft Fakes
 FakesAssemblies/
+
+# Zig related
+zig-out
+.zig-cache
+.DS_Store

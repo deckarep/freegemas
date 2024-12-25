@@ -1,82 +1,34 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/JoseTomasTocino/freegemas/static/images/header_logo.png"><br>
-    <img src="https://raw.githubusercontent.com/JoseTomasTocino/freegemas/static/images/header_gems.png"><br>
+    <img src="https://github.com/deckarep/freegemas/blob/zig-version/static/images/header_logo.png"><br>
+    <img src="https://github.com/deckarep/freegemas/blob/zig-version/static/images/header_gems.png"><br>
 </p>
 
-__Freegemas__ is an open source version of the well known Bejeweled, for GNU/Linux, Windows, Mac and Playstation Vita. It's written in C++ using [SDL2](https://www.libsdl.org/). In the past it used Gosu instead of SDL2, and the old repository can be found at [Google Code](https://code.google.com/archive/p/freegemas/).
+__Freegemas__ is a GPL2.0 open source version of the well known Bejeweled, for MacOS and ~GNU/Linux, Windows, Playstation Vita~. It's written in [Zig 0.13.0](https://ziglang.org) using [SDL2](https://www.libsdl.org/). This version is a Zig-based port of the [original C++ version by Jose Tomas Tocino](https://github.com/JoseTomasTocino/freegemas). Since the original license is an
+open source copyleft license this repo is required to use the same exact license.
 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/JoseTomasTocino/freegemas/static/images/screenshot_1.png">
+    <img src="https://github.com/deckarep/freegemas/blob/zig-version/static/images/screenshot_1.png">
 </p>    
         
-
-
-## Installation on Debian-based GNU/Linux systems
-
-First, you need to install git and gcc:
-
-    sudo apt-get install git build-essential cmake
-
-Next, install SDL2 and JsonCpp from the repositories:
-
-    sudo apt-get install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev libjsoncpp-dev
-    
-After that, clone the repo:
-
-    git clone https://github.com/JoseTomasTocino/freegemas.git
-    
-Do an out-of-source compilation and run the program:
-
-    cd freegemas
-    mkdir build
-    cd build
-    cmake ..
-    make
-    ./freegemas
-
 ## Installation on OS X
 
-This assumes that you are already using [Homebrew](https://brew.sh/). You will need CMake and a few libraries to compile Freegemas:
+First, head over to [ziglang.org](https://ziglang.org) and download *Zig 0.13.0* or newer.
 
-    brew install cmake sdl2 sdl2_mixer sdl2_ttf sdl2_image gettext jsoncpp
+This assumes that you are already using [Homebrew](https://brew.sh/). You will need a few libraries to compile Freegemas:
+
+    brew install sdl2 sdl2_mixer sdl2_ttf sdl2_image
 
 Now run the following commands to setup your environment to use Homebrew as a backup location for libraries.
 
-```
-[[ -z "${LIBRARY_PATH}" ]] && export LIBRARY_PATH=/usr/local/lib
-export LIBRARY_PATH="$LIBRARY_PATH:$(brew --prefix)/lib"
-```
-
 After that, clone the repo:
 
-    git clone https://github.com/JoseTomasTocino/freegemas.git
+    git clone https://github.com/deckarep/freegemas.git
     
 Do an out-of-source compilation and run the program:
 
     cd freegemas
-    mkdir build
-    cd build
-    cmake ..
-    make
+    zig build run
     ./freegemas
-
-## Installation on Playstation Vita
-
-For building for Vita, the [Vita SDK](https://vitasdk.org) should be installed.
-
-After that, clone the repo:
-
-    git clone https://github.com/JoseTomasTocino/freegemas.git
-
-Do an out-of-source compilation:
-
-    cd freegemas
-    mkdir vita
-    cd vita
-    cmake -DCMAKE_TOOLCHAIN_FILE="${VITASDK}/share/vita.toolchain.cmake" ..
-    make
-
-Now ``freegemas.vpk`` can be tranfered and installed on Vita.
 
 ## Music licensing
 
