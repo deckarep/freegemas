@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/deckarep/freegemas/static/images/header_logo.png"><br>
+    <img src="https://raw.githubusercontent.com/deckarep/freegemas/media/images/header_logo.png"><br>
     <img src="https://raw.githubusercontent.com/deckarep/freegemas/static/images/header_gems.png"><br>
 </p>
 
@@ -11,6 +11,8 @@ open source copyleft license this repo is required to use the same exact license
 </p>    
         
 ## Installation on OS X
+
+First, head over to [ziglang.org](https://ziglang.org) and download *Zig 0.13.0* or newer.
 
 This assumes that you are already using [Homebrew](https://brew.sh/). You will need a few libraries to compile Freegemas:
 
