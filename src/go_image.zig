@@ -48,7 +48,6 @@ pub const GoImage = struct {
     }
 
     pub fn setWindowAndPath(self: *Self, pw: *goWin.GoWindow, path: []const u8) !bool {
-        std.debug.assert(pw != null);
         self.mParentWindow = pw;
 
         var buf: [128]u8 = undefined;
@@ -64,10 +63,7 @@ pub const GoImage = struct {
             return false;
         }
 
-        // Fill the managed pointer
-        // TODO: how to handle this deleter nonsense.
-        //self.mTexture.reset(texture, GoSDL::Image::SDL_Texture_Deleter());
-        // destroy the old texture if one is set.
+        // Destroy the old texture if one is set.
         if (self.mTexture) |txt| {
             c.SDL_DestroyTexture(txt);
         }
@@ -82,9 +78,6 @@ pub const GoImage = struct {
     pub fn setTexture(self: *Self, texture: ?*c.SDL_Texture) void {
         // Assign the texture
 
-        // TODO: how to handle this deleter nonsense.
-        //self.mTexture.reset(texture, GoSDL::Image::SDL_Texture_Deleter());
-        // destroy the old texture if one is set.
         if (self.mTexture) |txt| {
             c.SDL_DestroyTexture(txt);
         }
