@@ -330,6 +330,7 @@ pub const GameBoard = struct {
                 else {
                     const sols = try self.mBoard.solutions();
                     defer sols.deinit();
+                    std.debug.print("Just check sols...\n", .{});
                     // if (sols.empty())
                     if (sols.items.len == 0) {
                         if (std.mem.eql(u8, self.mGame.getCurrentState(), "stateGameEndless")) {

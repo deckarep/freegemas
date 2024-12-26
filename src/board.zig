@@ -19,6 +19,7 @@ pub const Board = struct {
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) Self {
+        std.debug.print("size of SquareType => {d}\n", .{@sizeOf(sq.SquareType)});
         return Self{
             .allocator = allocator,
         };
@@ -203,6 +204,9 @@ pub const Board = struct {
     ///
     /// NOTE: The caller owns the returned MultiMatch and must always deinit.
     pub fn check(self: *Self) !mm.MultiMatch {
+        const start = try std.time.Instant.now();
+        std.debug.print("board::check started...\n", .{});
+
         // r.c. better expressed as a usize vs i32.
         var k: usize = undefined;
 
@@ -273,6 +277,11 @@ pub const Board = struct {
             }
         }
 
+        // Measure elapsed.
+        const end = try std.time.Instant.now();
+        const elapsed: f64 = @floatFromInt(end.since(start));
+        std.debug.print("board::check finished in {d:.3}ms...\n", .{elapsed / std.time.ns_per_ms});
+
         return matches;
     }
 
@@ -282,27 +291,29 @@ pub const Board = struct {
     /// And then costs about 13-19ms in ReleaseFast mode.
     /// It does contribute to a little bit of frame stutter in debug mode.
     pub fn solutions(self: *Self) !std.ArrayList(co.Coord) {
-        const start = try std.time.Instant.now();
-        std.debug.print("solutions started...\n", .{});
-
         var results = std.ArrayList(co.Coord).init(self.allocator);
 
+        // First check, if we have any matches in the current state.
         const matches = try self.check();
         defer matches.deinit();
 
         if (!matches.empty()) {
             try results.append(co.Coord{ .x = null, .y = null });
-
-            // Measure elapsed.
-            const end = try std.time.Instant.now();
-            const elapsed: f64 = @floatFromInt(end.since(start));
-            std.debug.print("solutions finished in {d:.3}ms...\n", .{elapsed / std.time.ns_per_ms});
-
             return results;
         }
 
-        // Let's check all the possible boards
-        // (49 * 4) + (32 * 2) even though there are many repetitions.
+        const start = try std.time.Instant.now();
+        std.debug.print("board::solutions started...\n", .{});
+
+        // Let's check all possible swaps on the board.
+        // For an 8x8 grid:
+        // - 4 corner cells, each with 2 valid swaps: 4 * 2 = 8 checks
+        // - 24 edge cells (excluding corners), each with 3 valid swaps: 24 * 3 = 72 checks
+        // - 36 interior cells, each with 4 valid swaps: 36 * 4 = 144 checks
+        // Total checks = 8 (corners) + 72 (edges) + 144 (interior) = 224 checks
+
+        // And, if you're counting the first check that occurs above with the early exit:
+        // Final total checks = 225.
 
         // Original code, did the same and worked off a temp stack copy.
         var temp = self.*;
@@ -370,7 +381,7 @@ pub const Board = struct {
         // Measure elapsed.
         const end = try std.time.Instant.now();
         const elapsed: f64 = @floatFromInt(end.since(start));
-        std.debug.print("solutions finished in {d:.3}ms...\n", .{elapsed / std.time.ns_per_ms});
+        std.debug.print("board::solutions finished in {d:.3}ms...\n", .{elapsed / std.time.ns_per_ms});
         return results;
     }
 
