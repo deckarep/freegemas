@@ -111,7 +111,12 @@ pub const GameBoard = struct {
         }
 
         self.mFloatingScores.deinit();
-        self.mParticleSysList.deinit();
+
+        // A little more work to clean these up.
+        defer self.mParticleSysList.deinit();
+        for (self.mParticleSysList.items) |*pl| {
+            pl.deinit();
+        }
     }
 
     // Public below
@@ -821,7 +826,9 @@ pub const GameBoard = struct {
 
         var i: usize = list.items.len;
         while (i > 0) : (i -= 1) {
-            if (list.items[i - 1].ended()) {
+            const partList = &list.items[i - 1];
+            if (partList.ended()) {
+                defer partList.deinit();
                 _ = list.swapRemove(i - 1);
             }
         }

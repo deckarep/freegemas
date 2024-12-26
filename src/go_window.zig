@@ -104,6 +104,40 @@ pub const GoWindow = struct {
         return o;
     }
 
+    pub fn deinit(self: *Self) void {
+        // self.closeAllGameControllers();
+        self.mDrawingQueue.deinit();
+
+        // TODO: clean up the states: state_game, state_how_to_play, state_main_menu, etc.
+        if (gamePlayEndless) |*ge| {
+            ge.deinit();
+        }
+
+        if (gamePlayTimetrial) |*gtt| {
+            gtt.deinit();
+        }
+
+        if (howToPlay) |*htp| {
+            _ = htp;
+            //htp.deinit(); <-- TODO: add this
+        }
+
+        if (self.mRenderer) |rnd| {
+            c.SDL_DestroyRenderer(rnd);
+            self.mRenderer = null;
+        }
+
+        if (self.mWindow) |win| {
+            c.SDL_DestroyWindow(win);
+            self.mWindow = null;
+        }
+
+        // Quit SDL subsystems.
+        c.Mix_Quit();
+        c.IMG_Quit();
+        c.SDL_Quit();
+    }
+
     pub fn setup(self: *Self) !void {
         if (c.SDL_Init(c.SDL_INIT_VIDEO | c.SDL_INIT_AUDIO) < 0) { //| c.SDL_INIT_GAMECONTROLLER) < 0) {
             @panic("failed to init SDL with an error of sorts!");
@@ -175,25 +209,6 @@ pub const GoWindow = struct {
 
         // TODO: main menu for starters.
         try self.changeState("stateMainMenu");
-    }
-
-    pub fn deinit(self: *Self) void {
-        // self.closeAllGameControllers();
-
-        if (self.mRenderer) |rnd| {
-            c.SDL_DestroyRenderer(rnd);
-            self.mRenderer = null;
-        }
-
-        if (self.mWindow) |win| {
-            c.SDL_DestroyWindow(win);
-            self.mWindow = null;
-        }
-
-        // Quit SDL subsystems.
-        c.Mix_Quit();
-        c.IMG_Quit();
-        c.SDL_Quit();
     }
 
     pub fn update(self: *Self) !void {

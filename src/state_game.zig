@@ -64,6 +64,10 @@ pub const StateGame = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        self.mGameBoard.deinit();
+    }
+
     pub fn setup(ptr: *anyopaque) anyerror!void {
         const self: *Self = @alignCast(@ptrCast(ptr));
 
