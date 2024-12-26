@@ -122,6 +122,10 @@ pub const GoWindow = struct {
             //htp.deinit(); <-- TODO: add this
         }
 
+        if (mainMenu) |*mm| {
+            mm.deinit();
+        }
+
         if (self.mRenderer) |rnd| {
             c.SDL_DestroyRenderer(rnd);
             self.mRenderer = null;

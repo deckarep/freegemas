@@ -29,6 +29,11 @@ pub const GoImage = struct {
 
     pub fn deinit(self: *Self) void {
         self.mParentWindow = null;
+
+        if (self.mTexture) |txt| {
+            c.SDL_DestroyTexture(txt);
+            self.mTexture = null;
+        }
     }
 
     pub fn setWindow(self: *Self, pw: ?*goWin.GoWindow) void {
@@ -43,6 +48,7 @@ pub const GoImage = struct {
     }
 
     pub fn setWindowAndPath(self: *Self, pw: *goWin.GoWindow, path: []const u8) !bool {
+        std.debug.assert(pw != null);
         self.mParentWindow = pw;
 
         var buf: [128]u8 = undefined;

@@ -1,9 +1,12 @@
 const goWin = @import("go_window.zig");
 const goImg = @import("go_image.zig");
 const easings = @import("easings.zig");
+const std = @import("std");
 
 const GEM_COUNT = 7;
 
+/// This group animation is simply shown on the main menu.
+/// It does not have any bearing on gameplay.
 pub const JewewlGroupAnim = struct {
     animationCurrentStep: i32 = undefined,
     animationTotalSteps: i32 = undefined,
@@ -16,6 +19,12 @@ pub const JewewlGroupAnim = struct {
 
     pub fn init() Self {
         return Self{};
+    }
+
+    pub fn deinit(self: *Self) void {
+        for (&self.imgGems) |*img| {
+            img.deinit();
+        }
     }
 
     pub fn loadResources(self: *Self, w: *goWin.GoWindow) !void {

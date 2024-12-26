@@ -77,6 +77,10 @@ pub const StateMainMenu = struct {
         return o;
     }
 
+    pub fn deinit(self: *Self) void {
+        self.mJewelAnimation.deinit();
+    }
+
     pub fn setup(ptr: *anyopaque) anyerror!void {
         const self: *Self = @alignCast(@ptrCast(ptr));
 
