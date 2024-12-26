@@ -46,7 +46,7 @@ pub const GoWindow = struct {
     /// Main renderer
     mRenderer: ?*c.SDL_Renderer = null,
 
-    // Game Sound controller
+    /// Sound controller
     mGameSounds: gs.GameSounds = gs.GameSounds.init(),
 
     /// Rendering queue

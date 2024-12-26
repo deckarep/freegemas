@@ -120,6 +120,7 @@ pub const StateGame = struct {
             self.resetTime();
 
             self.mGameIndicators.disableTime();
+            self.mGameIndicators.enableHint();
 
             // Reset the scoreboard
             try self.mGameIndicators.setScore(0);
@@ -143,6 +144,7 @@ pub const StateGame = struct {
             self.resetTime();
 
             self.mGameIndicators.enableTime();
+            self.mGameIndicators.enableHint();
 
             // Reset the scoreboard
             try self.mGameIndicators.setScore(0);
@@ -261,6 +263,7 @@ pub const StateGame = struct {
 
     pub fn resetGame(self: *Self) !void {
         try self.mGameIndicators.setScore(0);
+        self.enableHint();
         self.resetTime();
         try self.mGameBoard.resetGame();
     }
@@ -272,6 +275,14 @@ pub const StateGame = struct {
 
     pub fn showHint(self: *Self) !void {
         try self.mGameBoard.showHint();
+    }
+
+    pub fn disableHint(self: *Self) void {
+        self.mGameIndicators.disableHint();
+    }
+
+    pub fn enableHint(self: *Self) void {
+        self.mGameIndicators.enableHint();
     }
 
     pub fn increaseScore(self: *Self, amount: i32) !void {

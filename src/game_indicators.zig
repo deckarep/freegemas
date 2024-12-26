@@ -17,6 +17,7 @@ pub const GameIndicators = struct {
     mRemainingTime: f64 = 0,
     mRemainingTimePrev: f64 = 0,
     mTimeEnabled: bool = false,
+    mHintEnabled: bool = false,
 
     mFontTime: goFont.GoFont = undefined,
     mFontScore: goFont.GoFont = undefined,
@@ -160,12 +161,20 @@ pub const GameIndicators = struct {
         }
     }
 
+    pub fn enableTime(self: *Self) void {
+        self.mTimeEnabled = true;
+    }
+
     pub fn disableTime(self: *Self) void {
         self.mTimeEnabled = false;
     }
 
-    pub fn enableTime(self: *Self) void {
-        self.mTimeEnabled = true;
+    pub fn enableHint(self: *Self) void {
+        self.mHintEnabled = true;
+    }
+
+    pub fn disableHint(self: *Self) void {
+        self.mHintEnabled = false;
     }
 
     pub fn draw(self: *Self) !void {
@@ -173,7 +182,12 @@ pub const GameIndicators = struct {
         const vertButStart = 407;
 
         // Draw the buttons
-        try self.mHintButton.draw(17, vertButStart, 2);
+        if (self.mHintEnabled) {
+            // Hint can be disabled for two reasons:
+            // 1. Game ended, so don't render it.
+            // 2. TODO: settings to not allow hints.
+            try self.mHintButton.draw(17, vertButStart, 2);
+        }
         try self.mResetButton.draw(17, vertButStart + 47, 2);
         try self.mExitButton.draw(17, 538, 2);
 
@@ -202,7 +216,7 @@ pub const GameIndicators = struct {
         }
 
         // Hint button was clicked
-        else if (self.mHintButton.clicked(mX, mY)) {
+        else if (self.mHintEnabled and self.mHintButton.clicked(mX, mY)) {
             try self.mStateGame.showHint();
         }
 

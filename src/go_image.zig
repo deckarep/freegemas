@@ -57,6 +57,9 @@ pub const GoImage = struct {
     }
 
     pub fn loadTexture(self: *Self, path: [:0]const u8) bool {
+        // This can never ever be null, and if it is...the image hasn't been setup correctly.
+        std.debug.assert(self.mParentWindow != null);
+
         // Load texture from file
         const texture = c.IMG_LoadTexture(self.mParentWindow.?.getRenderer(), path.ptr);
         if (texture == null) {

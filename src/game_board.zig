@@ -10,6 +10,7 @@ const easings = @import("easings.zig");
 const gh = @import("game_hint.zig");
 const ps = @import("particle_system.zig");
 const sg = @import("state_game.zig");
+const utility = @import("utility.zig");
 
 pub const tState = enum {
     eNoBoard,
@@ -163,6 +164,7 @@ pub const GameBoard = struct {
             return;
         }
 
+        self.mStateGame.disableHint();
         try self.mBoard.dropAllGems();
         self.mState = .eTimeFinished;
 
@@ -653,7 +655,12 @@ pub const GameBoard = struct {
             defer hintLocations.deinit();
 
             // Start hint animation
-            self.mHint.showHint(hintLocations.items[0]);
+            // But choose a random hint.
+            const randHint: usize = @intCast(try utility.getRandomInt(
+                0,
+                @intCast(hintLocations.items.len - 1),
+            ));
+            self.mHint.showHint(hintLocations.items[randHint]);
         }
     }
 
