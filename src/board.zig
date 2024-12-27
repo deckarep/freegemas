@@ -285,11 +285,21 @@ pub const Board = struct {
         return matches;
     }
 
+    // Low-hanging fruit for optimization
+    // 0. ✅ Square methods should be inlined.
+    // 1. ✅ As long as at least one move exists, solutions should early return (at least in some cases).
+    // 2. Better cache coherency: Both solutions and check could operate on [8][8]SquareType which has a @sizeOf() 64 bytes.
+    //    This would be significantly better than what it's doing now: [8][8]Square => @sizeOf() 1024 bytes.
+
     /// Checks if current Board has any possible valid movements.
     /// NOTE: Caller owns and must .deinit the returned results.
     /// This function is expensive and costs about 120ms+ in debug mode.
     /// And then costs about 13-19ms in ReleaseFast mode.
     /// It does contribute to a little bit of frame stutter in debug mode.
+    /// BIG CHANGE: See the optimizations above, 1 and 2 are done.
+    /// This means, solutions will early-exit if just ONE match is found.
+    /// Currently solutions will never return all solutions found.
+    /// If, that is needed, we need to introduce an argument for ALL or just ONE.
     pub fn solutions(self: *Self) !std.ArrayList(co.Coord) {
         var results = std.ArrayList(co.Coord).init(self.allocator);
 
@@ -318,7 +328,7 @@ pub const Board = struct {
         // Original code, did the same and worked off a temp stack copy.
         var temp = self.*;
 
-        for (0..GRID_SIZE) |x| {
+        earlyExit: for (0..GRID_SIZE) |x| {
             for (0..GRID_SIZE) |y| {
                 // Swap with the cell above and check
                 if (y > 0) {
@@ -329,6 +339,7 @@ pub const Board = struct {
 
                     if (!tempChecks.empty()) {
                         try results.append(co.Coord{ .x = x, .y = y });
+                        break :earlyExit;
                     }
 
                     temp.swap(x, y, x, y - 1);
@@ -343,6 +354,7 @@ pub const Board = struct {
 
                     if (!tempChecks.empty()) {
                         try results.append(co.Coord{ .x = x, .y = y });
+                        break :earlyExit;
                     }
 
                     temp.swap(x, y, x, y + 1);
@@ -357,6 +369,7 @@ pub const Board = struct {
 
                     if (!tempChecks.empty()) {
                         try results.append(co.Coord{ .x = x, .y = y });
+                        break :earlyExit;
                     }
 
                     temp.swap(x, y, x - 1, y);
@@ -371,6 +384,7 @@ pub const Board = struct {
 
                     if (!tempChecks.empty()) {
                         try results.append(co.Coord{ .x = x, .y = y });
+                        break :earlyExit;
                     }
 
                     temp.swap(x, y, x + 1, y);

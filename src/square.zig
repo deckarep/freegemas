@@ -38,11 +38,11 @@ pub const Square = struct {
     /// Indicates whether the square has tot fall or not.
     mustFall: bool = false,
 
-    pub fn eql(self: Square, other: Square) bool {
+    pub inline fn eql(self: Square, other: Square) bool {
         return self.sqType == other.sqType;
     }
 
-    pub fn tSquare(self: Square) SquareType {
+    pub inline fn tSquare(self: Square) SquareType {
         return self.sqType;
     }
 };
