@@ -68,18 +68,7 @@ pub const FloatingScore = struct {
         const posX: f32 = BOARD_X_OFF + self.x_ * GEM_WH;
         const posY: f32 = BOARD_Y_OFF + self.y_ * GEM_WH - (1 - p) * 20;
 
-        _ = try self.mScoreImage.drawEx(
-            @intFromFloat(posX),
-            @intFromFloat(posY),
-            @intFromFloat(self.z_),
-            1,
-            1,
-            0,
-            alpha,
-            scoreColor,
-            c.SDL_BLENDMODE_BLEND,
-        );
-
+        // Drop shadow.
         _ = try self.mScoreImageShadow.drawEx(
             @as(i32, @intFromFloat(posX)) + 2,
             @as(i32, @intFromFloat(posY)) + 2,
@@ -92,16 +81,19 @@ pub const FloatingScore = struct {
             c.SDL_BLENDMODE_BLEND,
         );
 
-        _ = try self.mScoreImageShadow.drawEx(
-            @as(i32, @intFromFloat(posX)) - 2,
-            @as(i32, @intFromFloat(posY)) - 2,
-            @as(i32, @intFromFloat(self.z_ - 0.1)),
-            1,
-            1,
-            0,
-            alpha,
-            scoreColor,
-            c.SDL_BLENDMODE_BLEND,
-        );
+        // White additive score, applied thrice.
+        for (0..3) |_| {
+            _ = try self.mScoreImage.drawEx(
+                @intFromFloat(posX),
+                @intFromFloat(posY),
+                @intFromFloat(self.z_),
+                1,
+                1,
+                0,
+                alpha,
+                scoreColor,
+                c.SDL_BLENDMODE_ADD,
+            );
+        }
     }
 };
