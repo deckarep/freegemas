@@ -18,6 +18,10 @@ const scoreShadowColor = c.SDL_Color{
     .a = 255,
 };
 
+const BOARD_X_OFF = 241;
+const BOARD_Y_OFF = 41;
+const GEM_WH = 65;
+
 pub const FloatingScore = struct {
     mScoreImage: goImg.GoImage = undefined,
     mScoreImageShadow: goImg.GoImage = undefined,
@@ -59,9 +63,10 @@ pub const FloatingScore = struct {
         self.mCurrentStep += 1;
 
         const p: f32 = 1.0 - @as(f32, @floatFromInt(self.mCurrentStep)) / @as(f32, @floatFromInt(self.mTotalSteps));
+        const alpha: u8 = @intFromFloat(p * 255);
 
-        const posX: f32 = 241 + self.x_ * 65;
-        const posY: f32 = 41 + self.y_ * 65 - (1 - p) * 20;
+        const posX: f32 = BOARD_X_OFF + self.x_ * GEM_WH;
+        const posY: f32 = BOARD_Y_OFF + self.y_ * GEM_WH - (1 - p) * 20;
 
         _ = try self.mScoreImage.drawEx(
             @intFromFloat(posX),
@@ -70,7 +75,7 @@ pub const FloatingScore = struct {
             1,
             1,
             0,
-            @intFromFloat(p * 255),
+            alpha,
             scoreColor,
             c.SDL_BLENDMODE_BLEND,
         );
@@ -82,7 +87,7 @@ pub const FloatingScore = struct {
             1,
             1,
             0,
-            @intFromFloat(p * 255),
+            alpha,
             scoreColor,
             c.SDL_BLENDMODE_BLEND,
         );
@@ -94,7 +99,7 @@ pub const FloatingScore = struct {
             1,
             1,
             0,
-            @intFromFloat(p * 255),
+            alpha,
             scoreColor,
             c.SDL_BLENDMODE_BLEND,
         );
