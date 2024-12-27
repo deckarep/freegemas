@@ -13,6 +13,7 @@ open source copyleft license this repo is required to use the same exact license
 ## Supported Systems
 - [x] MacOS
 - [x] Linux
+- [ ] Windows (contributions welcome to get this building there)
         
 ## Installation on OS X
 
