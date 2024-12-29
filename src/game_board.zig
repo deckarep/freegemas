@@ -71,6 +71,9 @@ pub const GameBoard = struct {
     mImgYellow: goImg.GoImage = goImg.GoImage.init(),
     mImgBlue: goImg.GoImage = goImg.GoImage.init(),
 
+    /// Endless tick counter
+    mTicks: usize = 0,
+
     /// Animation current step
     mAnimationCurrentStep: i32 = 0,
 
@@ -198,6 +201,9 @@ pub const GameBoard = struct {
     }
 
     pub fn update(self: *Self) !void {
+        // Always ticks moving, for subtle animations.
+        defer self.mTicks += 1;
+
         // Default state, do nothing
         if (self.mState == .eSteady) {
             self.mMultiplier = 0;
@@ -404,21 +410,24 @@ pub const GameBoard = struct {
 
         // Draw the selector over that gem
         try self.mImgSelector.draw(
-            241 + self.mSelectorX * 65,
-            41 + self.mSelectorY * 65,
+            glConsts.Board.XOffset + self.mSelectorX * glConsts.Board.GemWH,
+            glConsts.Board.YOffset + self.mSelectorY * glConsts.Board.GemWH,
             4,
         );
 
         // Draw the selector if a gem has been selected
         if (self.mState == .eGemSelected) {
+            // TODO: this is wrong, fix this crap.
+            const alpha: u8 = @as(u8, @intFromFloat(128.0 + @min(0, ((127.0 * @sin(@as(f32, @floatFromInt(self.mTicks * 5)) * (std.math.pi / 180.0)))))));
+            std.debug.print("alpha => {d}\n", .{alpha});
             _ = try self.mImgSelector.drawEx(
-                241 + @as(i32, @intCast(self.mSelectedSquareFirst.x.?)) * 65,
-                41 + @as(i32, @intCast(self.mSelectedSquareFirst.y.?)) * 65,
+                glConsts.Board.XOffset + @as(i32, @intCast(self.mSelectedSquareFirst.x.?)) * glConsts.Board.GemWH,
+                glConsts.Board.YOffset + @as(i32, @intCast(self.mSelectedSquareFirst.y.?)) * glConsts.Board.GemWH,
                 4,
                 1,
                 1,
                 0,
-                255,
+                alpha,
                 c.SDL_Color{ .r = 0, .g = 255, .b = 255, .a = 255 },
                 c.SDL_BLENDMODE_BLEND,
             );
@@ -671,18 +680,23 @@ pub const GameBoard = struct {
     // Tests if the mouse is over a gem
     fn overGem(self: Self, mX: i32, mY: i32) bool {
         _ = self;
-        // WARN: hardcoded nonsense here.
-        return (mX > 241 and mX < 241 + 65 * 8 and
-            mY > 41 and mY < 41 + 65 * 8);
+
+        const left = glConsts.Board.XOffset;
+        const right = glConsts.Board.XOffset + glConsts.Board.GemWH * glConsts.Board.GridSize;
+        const top = glConsts.Board.YOffset;
+        const bottom = glConsts.Board.YOffset + glConsts.Board.GemWH * glConsts.Board.GridSize;
+
+        return (mX > left and mX < right and
+            mY > top and mY < bottom);
     }
 
     // /// Returns the coords of the gem the mouse is over
     fn getCoord(self: Self, mX: i32, mY: i32) co.Coord {
         _ = self;
-        // WARN: hardcoded bullshit.
+
         return co.Coord{
-            .x = @intCast(@divTrunc((mX - 241), 65)),
-            .y = @intCast(@divTrunc((mY - 41), 65)),
+            .x = @intCast(@divTrunc((mX - glConsts.Board.XOffset), glConsts.Board.GemWH)),
+            .y = @intCast(@divTrunc((mY - glConsts.Board.YOffset), glConsts.Board.GemWH)),
         };
     }
 
@@ -817,8 +831,9 @@ pub const GameBoard = struct {
 
     /// Cleans up any floating scores that have ended their animations.
     fn cullFloatingScores(self: *Self) void {
-        var list: *std.ArrayList(fs.FloatingScore) = &self.mFloatingScores;
+        var list = &self.mFloatingScores;
 
+        // NOTE: Iterates in reverse to avoid pointer invalidation.
         var i: usize = list.items.len;
         while (i > 0) : (i -= 1) {
             if (list.items[i - 1].ended()) {
@@ -830,8 +845,9 @@ pub const GameBoard = struct {
     /// Cleans up any particle systems that are no longer alive.
     /// NOTE: This code is nearly identical to cullFloatingScores, perhaps I can simplify.
     fn cullParticleSystems(self: *Self) void {
-        var list: *std.ArrayList(ps.ParticleSystem) = &self.mParticleSysList;
+        var list = &self.mParticleSysList;
 
+        // NOTE: Iterates in reverse to avoid pointer invalidation.
         var i: usize = list.items.len;
         while (i > 0) : (i -= 1) {
             const partList = &list.items[i - 1];

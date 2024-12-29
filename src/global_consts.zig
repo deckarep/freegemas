@@ -5,6 +5,7 @@ pub const Game = struct {
 };
 // Board and Gems
 pub const Board = struct {
+    pub const GridSize = 8; // 8x8
     pub const XOffset = 241;
     pub const YOffset = 41;
     pub const GemWH = 65;
