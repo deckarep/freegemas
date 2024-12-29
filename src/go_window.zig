@@ -470,9 +470,14 @@ pub const GoWindow = struct {
         } else if (std.mem.eql(u8, newState, "stateQuit")) {
             self.close();
         } else if (std.mem.eql(u8, newState, "stateGameEndless")) {
-            if (gamePlayEndless == null) {
-                gamePlayEndless = try StateGame.init(.eEndless, self, self.allocator);
+            if (gamePlayEndless) |*gpe| {
+                // If a prev instance existed from user going back and switching states.
+                // Clean this instance up, then allow a fresh one to be created and setup.
+                gpe.deinit();
+                gamePlayEndless = null;
             }
+
+            gamePlayEndless = try StateGame.init(.eEndless, self, self.allocator);
 
             const stater = gamePlayEndless.?.stater(self);
             try stater.setup();
@@ -480,9 +485,14 @@ pub const GoWindow = struct {
             self.mCurrentState = stater;
             self.mCurrentStateStr = "stateGameEndless";
         } else if (std.mem.eql(u8, newState, "stateGameTimetrial")) {
-            if (gamePlayTimetrial == null) {
-                gamePlayTimetrial = try StateGame.init(.eTimetrial, self, self.allocator);
+            if (gamePlayTimetrial) |*gptt| {
+                // If a prev instance existed from user going back and switching states.
+                // Clean this instance up, then allow a fresh one to be created and setup.
+                gptt.deinit();
+                gamePlayTimetrial = null;
             }
+
+            gamePlayTimetrial = try StateGame.init(.eTimetrial, self, self.allocator);
 
             const stater = gamePlayTimetrial.?.stater(self);
             try stater.setup();
