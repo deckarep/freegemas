@@ -33,6 +33,7 @@ pub const GoMusic = struct {
     }
 
     pub fn play(self: Self, vol: f32) void {
+        if (true) return;
         if (self.mSample) |sample| {
             _ = c.Mix_VolumeMusic(@intFromFloat(128.0 * vol));
             _ = c.Mix_FadeInMusic(sample, -1, 200);
