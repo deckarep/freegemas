@@ -269,8 +269,8 @@ pub const GameIndicators = struct {
             const totalMouthFrames = 10; // num mouth frames
             const totalEyeFrames = 3; // num eye frames
             // Mouth w/h for single frame.
-            const portWH = c.SDL_Point{ .x = 28, .y = 22 };
-            const eyeWH = c.SDL_Point{ .x = 35, .y = 4 };
+            const mouthWH = c.SDL_Point{ .x = 26, .y = 22 };
+            const eyeWH = c.SDL_Point{ .x = 32, .y = 4 };
             const eyesVertOffset = 24; // eye vertical offset
             // Eye w/h of single frame.
             try self.drawAvatarHack(
@@ -281,7 +281,7 @@ pub const GameIndicators = struct {
                 &self.mBookownerFaceAnim,
                 &mouthPt,
                 &eyePt,
-                &portWH,
+                &mouthWH,
                 totalMouthFrames,
                 totalEyeFrames,
                 eyesVertOffset,
@@ -298,7 +298,7 @@ pub const GameIndicators = struct {
         faceAnim: *goImg.GoImage,
         mouthPt: *const c.SDL_Point,
         eyePt: *const c.SDL_Point,
-        portWH: *const c.SDL_Point,
+        mouthWH: *const c.SDL_Point,
         totalMouthOffsets: comptime_int,
         totalEyeOffsets: comptime_int,
         eyesVertOffset: comptime_int,
@@ -306,14 +306,14 @@ pub const GameIndicators = struct {
     ) !void {
         defer self.mAvatarTicks += 1;
 
-        // 1. Always draw static avatar portrait, bottom layer.
+        // 1. PORTRAIT: Always draw static avatar portrait, bottom layer.
         _ = try portStatic.draw(
             portStaticPt.x,
             portStaticPt.y,
             4,
         );
 
-        // 2. Next draw mouth cycle only when character is talking, next layer.
+        // 2. MOUTH: Next draw mouth cycle only when character is talking, next layer.
         if (self.mGame.getGameSounds().isPlayOldLampsBusy()) {
             const tickCount = 4;
 
@@ -325,8 +325,8 @@ pub const GameIndicators = struct {
                 self.mAvatarMouthOffset = 0;
             }
 
-            faceAnim.mWidth = portWH.x;
-            faceAnim.mHeight = portWH.y;
+            faceAnim.mWidth = mouthWH.x;
+            faceAnim.mHeight = mouthWH.y;
 
             _ = try faceAnim.drawEx2(
                 (portStaticPt.x + mouthPt.x),
@@ -339,15 +339,15 @@ pub const GameIndicators = struct {
                 c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
                 c.SDL_BLENDMODE_BLEND,
                 c.SDL_Rect{
-                    .x = @as(i32, @intCast(self.mAvatarMouthOffset)) * portWH.x,
+                    .x = @as(i32, @intCast(self.mAvatarMouthOffset)) * (mouthWH.x + 2),
                     .y = 0,
-                    .w = portWH.x,
-                    .h = portWH.y,
+                    .w = mouthWH.x,
+                    .h = mouthWH.y,
                 },
             );
         }
 
-        // 3. Always draw blinking eyes, top layer no matter what.
+        // 3. EYES: Always draw blinking eyes, top layer no matter what.
         faceAnim.mWidth = eyeWH.x;
         faceAnim.mHeight = eyeWH.y;
 
@@ -379,7 +379,7 @@ pub const GameIndicators = struct {
             c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
             c.SDL_BLENDMODE_BLEND,
             c.SDL_Rect{
-                .x = @as(i32, @intCast(self.mAvatarEyesOffset)) * eyeWH.x,
+                .x = @as(i32, @intCast(self.mAvatarEyesOffset)) * (eyeWH.x + 2),
                 .y = eyesVertOffset,
                 .w = @intCast(eyeWH.x),
                 .h = @intCast(eyeWH.y),

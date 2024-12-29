@@ -1,13 +1,10 @@
 const std = @import("std");
+const glConsts = @import("global_consts.zig");
 const goWin = @import("go_window.zig");
 const c = @import("cdefs.zig").c;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const alloc = gpa.allocator();
-
-const WINDOW_WIDTH = 800;
-const WINDOW_HEIGHT = 600;
-const UPDATE_INTERVAL = 25; //30;
 
 pub fn main() !void {
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
@@ -20,10 +17,10 @@ pub fn main() !void {
     }
 
     var w = try goWin.GoWindow.init(
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
+        glConsts.App.WINDOW_WIDTH,
+        glConsts.App.WINDOW_HEIGHT,
         "The Lampseller's Revenge: Old Lamps for New by @deckarep",
-        UPDATE_INTERVAL,
+        glConsts.App.UPDATE_INTERVAL,
         alloc,
     );
     defer w.deinit();

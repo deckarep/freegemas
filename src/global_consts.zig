@@ -1,3 +1,11 @@
+// Application stuff
+pub const App = struct {
+    pub const WINDOW_WIDTH = 800;
+    pub const WINDOW_HEIGHT = 600;
+    pub const UPDATE_INTERVAL = 25; //30;
+
+};
+
 // Game general stuff
 pub const Game = struct {
     pub const PointsPerGem = 5;

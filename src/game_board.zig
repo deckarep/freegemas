@@ -178,23 +178,27 @@ pub const GameBoard = struct {
     }
 
     pub fn loadResources(self: *Self) !void {
-        // Bookstore owner
+
+        // Pawn shop owner
+        // Trinkets found in pawn shop, such as: rabbits foot, paintbrush, etc.
+
+        // Bookstore owner, books, poems, maps, etc.
+        // _ = try self.mImgWhite.setWindowAndPath(self.mGame, "media/lampWhite.png");
+        // _ = try self.mImgRed.setWindowAndPath(self.mGame, "media/bookRed.png");
+        // _ = try self.mImgPurple.setWindowAndPath(self.mGame, "media/bookPurple.png");
+        // _ = try self.mImgOrange.setWindowAndPath(self.mGame, "media/bookOrange.png");
+        // _ = try self.mImgGreen.setWindowAndPath(self.mGame, "media/lampGreen.png");
+        // _ = try self.mImgYellow.setWindowAndPath(self.mGame, "media/bookBrown.png");
+        // _ = try self.mImgBlue.setWindowAndPath(self.mGame, "media/bookBlue.png");
+
+        // Lamp Seller
         _ = try self.mImgWhite.setWindowAndPath(self.mGame, "media/lampWhite.png");
         _ = try self.mImgRed.setWindowAndPath(self.mGame, "media/lampRed.png");
         _ = try self.mImgPurple.setWindowAndPath(self.mGame, "media/lampPurple.png");
         _ = try self.mImgOrange.setWindowAndPath(self.mGame, "media/lampOrange.png");
         _ = try self.mImgGreen.setWindowAndPath(self.mGame, "media/lampGreen.png");
-        _ = try self.mImgYellow.setWindowAndPath(self.mGame, "media/bookBrown.png");
-        _ = try self.mImgBlue.setWindowAndPath(self.mGame, "media/bookBlue.png");
-
-        // Lamp Seller
-        // _ = try self.mImgWhite.setWindowAndPath(self.mGame, "media/lampWhite.png");
-        // _ = try self.mImgRed.setWindowAndPath(self.mGame, "media/lampRed.png");
-        // _ = try self.mImgPurple.setWindowAndPath(self.mGame, "media/lampPurple.png");
-        // _ = try self.mImgOrange.setWindowAndPath(self.mGame, "media/lampOrange.png");
-        // _ = try self.mImgGreen.setWindowAndPath(self.mGame, "media/lampGreen.png");
-        // _ = try self.mImgYellow.setWindowAndPath(self.mGame, "media/lampYellow.png");
-        // _ = try self.mImgBlue.setWindowAndPath(self.mGame, "media/lampBlue.png");
+        _ = try self.mImgYellow.setWindowAndPath(self.mGame, "media/lampYellow.png");
+        _ = try self.mImgBlue.setWindowAndPath(self.mGame, "media/lampBlue.png");
 
         // Load the image for the square selector
         _ = try self.mImgSelector.setWindowAndPath(self.mGame, "media/selector.png");
