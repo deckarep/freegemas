@@ -11,8 +11,8 @@ const transitionState = enum { TransitionIn, Active, TransitionOut };
 
 // Menu target states (TODO: move behind const identifiers)
 const menuTargets = &[_][]const u8{
-    "stateGameTimetrial",
     "stateGameEndless",
+    "stateGameTimetrial",
     "stateHowtoplay",
     "stateOptions",
     "stateQuit",
@@ -98,8 +98,8 @@ pub const StateMainMenu = struct {
         try self.mFont.setPathAndSize("media/fuenteMenu.ttf", 30);
 
         // Menu text items
-        self.mMenuRenderedTexts[0] = self.mFont.renderTextWithShadow("Timetrial mode", menuTextColor, 0, 2, menuShadowColor);
-        self.mMenuRenderedTexts[1] = self.mFont.renderTextWithShadow("Endless mode", menuTextColor, 0, 2, menuShadowColor);
+        self.mMenuRenderedTexts[0] = self.mFont.renderTextWithShadow("Endless mode", menuTextColor, 0, 2, menuShadowColor);
+        self.mMenuRenderedTexts[1] = self.mFont.renderTextWithShadow("Timetrial mode", menuTextColor, 0, 2, menuShadowColor);
         self.mMenuRenderedTexts[2] = self.mFont.renderTextWithShadow("How to play?", menuTextColor, 0, 2, menuShadowColor);
         self.mMenuRenderedTexts[3] = self.mFont.renderTextWithShadow("Options", menuTextColor, 0, 2, menuShadowColor);
         self.mMenuRenderedTexts[4] = self.mFont.renderTextWithShadow("Exit", menuTextColor, 0, 2, menuShadowColor);

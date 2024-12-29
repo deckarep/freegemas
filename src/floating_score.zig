@@ -2,6 +2,7 @@ const std = @import("std");
 const goWin = @import("go_window.zig");
 const goFont = @import("go_font.zig");
 const goImg = @import("go_image.zig");
+const glConsts = @import("global_consts.zig");
 const c = @import("cdefs.zig").c;
 
 const scoreColor = c.SDL_Color{
@@ -17,10 +18,6 @@ const scoreShadowColor = c.SDL_Color{
     .b = 0,
     .a = 255,
 };
-
-const BOARD_X_OFF = 241;
-const BOARD_Y_OFF = 41;
-const GEM_WH = 65;
 
 pub const FloatingScore = struct {
     mScoreImage: goImg.GoImage = undefined,
@@ -39,7 +36,7 @@ pub const FloatingScore = struct {
         var tempFont = goFont.GoFont.init();
         try tempFont.setAll(pw, "media/fuentelcd.ttf", 60);
 
-        var buf: [32]u8 = undefined;
+        var buf: [8]u8 = undefined;
         const scoreTxt = try std.fmt.bufPrintZ(&buf, "{d}", .{score});
 
         return Self{
@@ -65,8 +62,8 @@ pub const FloatingScore = struct {
         const p: f32 = 1.0 - @as(f32, @floatFromInt(self.mCurrentStep)) / @as(f32, @floatFromInt(self.mTotalSteps));
         const alpha: u8 = @intFromFloat(p * 255);
 
-        const posX: f32 = BOARD_X_OFF + self.x_ * GEM_WH;
-        const posY: f32 = BOARD_Y_OFF + self.y_ * GEM_WH - (1 - p) * 20;
+        const posX: f32 = glConsts.Board.XOffset + self.x_ * glConsts.Board.GemWH;
+        const posY: f32 = glConsts.Board.YOffset + self.y_ * glConsts.Board.GemWH - (1 - p) * 20;
 
         // Drop shadow.
         _ = try self.mScoreImageShadow.drawEx(
