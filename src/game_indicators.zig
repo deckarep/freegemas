@@ -7,10 +7,17 @@ const om = @import("options_manager.zig");
 const bb = @import("base_button.zig");
 const c = @import("cdefs.zig").c;
 const sg = @import("state_game.zig");
+const utility = @import("utility.zig");
 
 pub const GameIndicators = struct {
     mGame: *goWin.GoWindow = undefined,
     mStateGame: *sg.StateGame = undefined,
+
+    mAvatarTicks: usize = 0,
+    mAvatarMouthOffset: usize = 0,
+
+    mAvatarEyesAllowedFrames: usize = 0,
+    mAvatarEyesOffset: usize = 0,
 
     mScore: i32 = 0,
     mScorePrev: i32 = -1,
@@ -21,6 +28,12 @@ pub const GameIndicators = struct {
 
     mFontTime: goFont.GoFont = undefined,
     mFontScore: goFont.GoFont = undefined,
+
+    mLampSellerPortrait: goImg.GoImage = goImg.GoImage.init(),
+    mLampSellerFaceAnim: goImg.GoImage = goImg.GoImage.init(),
+
+    mBookownerPortrait: goImg.GoImage = goImg.GoImage.init(),
+    mBookownerFaceAnim: goImg.GoImage = goImg.GoImage.init(),
 
     mImgTimeBackground: goImg.GoImage = goImg.GoImage.init(),
     mImgScoreBackground: goImg.GoImage = goImg.GoImage.init(),
@@ -77,8 +90,18 @@ pub const GameIndicators = struct {
             .a = 128,
         };
 
+        // LampSeller face anim hack
+
         self.mImgScoreHeader = tempHeaderFont.renderTextWithShadow("score", headerColor, 1, 1, headerShadow);
         self.mImgTimeHeader = tempHeaderFont.renderTextWithShadow("time left", headerColor, 1, 1, headerShadow);
+
+        // Lamp Seller
+        _ = try self.mLampSellerPortrait.setWindowAndPath(self.mGame, "media/LampSellerPortrait.png");
+        _ = try self.mLampSellerFaceAnim.setWindowAndPath(self.mGame, "media/LampSellerFaceAnimation.png");
+
+        // Book owner
+        _ = try self.mBookownerPortrait.setWindowAndPath(self.mGame, "media/BookownerPortrait.png");
+        _ = try self.mBookownerFaceAnim.setWindowAndPath(self.mGame, "media/BookownerFaceAnimation.png");
 
         // Load the background image for the time
         _ = try self.mImgTimeBackground.setWindowAndPath(self.mGame, "media/timeBackground.png");
@@ -95,7 +118,7 @@ pub const GameIndicators = struct {
         self.options.loadResources();
 
         if (self.options.getMusicEnabled()) {
-            try self.sfxSong.setSample("media/music.ogg");
+            try self.sfxSong.setSample("media/Isle of the Chill (remix).mp3");
             self.sfxSong.play(1);
         }
     }
@@ -179,17 +202,17 @@ pub const GameIndicators = struct {
 
     pub fn draw(self: *Self) !void {
         // Vertical initial position for the buttons
-        const vertButStart = 407;
+        //        const vertButStart = 407;
 
         // Draw the buttons
-        if (self.mHintEnabled) {
-            // Hint can be disabled for two reasons:
-            // 1. Game ended, so don't render it.
-            // 2. TODO: settings to not allow hints.
-            try self.mHintButton.draw(17, vertButStart, 2);
-        }
-        try self.mResetButton.draw(17, vertButStart + 47, 2);
-        try self.mExitButton.draw(17, 538, 2);
+        // if (self.mHintEnabled) {
+        //     // Hint can be disabled for two reasons:
+        //     // 1. Game ended, so don't render it.
+        //     // 2. TODO: settings to not allow hints.
+        //     try self.mHintButton.draw(17, vertButStart, 2);
+        // }
+        // try self.mResetButton.draw(17, vertButStart + 47, 2);
+        // try self.mExitButton.draw(17, 538, 2);
 
         // Draw the score
         try self.mImgScoreBackground.draw(17, 124, 2);
@@ -202,6 +225,166 @@ pub const GameIndicators = struct {
             try self.mImgTimeHeader.draw(17 + @divTrunc(self.mImgTimeBackground.getWidth(), 2) - @divTrunc(self.mImgTimeHeader.getWidth(), 2), 190, 3);
             try self.mImgTime.draw(190 - self.mImgTime.getWidth(), 232, 3);
         }
+
+        if (false) {
+            if (true) @panic("The lampsellers mouthPt and eyePt must be converted to relative offset from base portrait!");
+            // Lampseller!
+            const portStaticPt = c.SDL_Point{ .x = 95, .y = 449 }; // top left corner of static character portrait.
+
+            const mouthPt = c.SDL_Point{ .x = 157, .y = 536 }; // top left corner of mouth x/y
+            const eyePt = c.SDL_Point{ .x = 159, .y = 513 }; // top left corner of eye x/y
+
+            const totalMouthFrames = 10; // num mouth frames
+            const totalEyeFrames = 3; // num eye frames
+            // Mouth w/h for single frame.
+            const portWH = c.SDL_Point{ .x = 34, .y = 44 };
+            const eyeWH = c.SDL_Point{ .x = 38, .y = 14 };
+            const eyesVertOffset = 46; // eye vertical offset
+            // Eye w/h of single frame.
+            try self.drawAvatarHack(
+                // Portrait
+                &self.mLampSellerPortrait,
+                &portStaticPt,
+                // Face anim below
+                &self.mLampSellerFaceAnim,
+                &mouthPt,
+                &eyePt,
+                &portWH,
+                totalMouthFrames,
+                totalEyeFrames,
+                eyesVertOffset,
+                &eyeWH,
+            );
+        }
+
+        // TODO: use the KQ6 point score sound effect for gem matching! sound.
+        if (true) {
+            // Bookowner
+            const portStaticPt = c.SDL_Point{ .x = 95, .y = 449 }; // top left corner of static character portrait.
+
+            // These are both relative from portStaticPt.
+            const mouthPt = c.SDL_Point{ .x = 62, .y = 84 }; // top left corner of mouth x/y
+            const eyePt = c.SDL_Point{ .x = 56, .y = 38 }; // top left corner of eye x/y
+
+            const totalMouthFrames = 10; // num mouth frames
+            const totalEyeFrames = 3; // num eye frames
+            // Mouth w/h for single frame.
+            const portWH = c.SDL_Point{ .x = 28, .y = 22 };
+            const eyeWH = c.SDL_Point{ .x = 35, .y = 4 };
+            const eyesVertOffset = 24; // eye vertical offset
+            // Eye w/h of single frame.
+            try self.drawAvatarHack(
+                // Portrait
+                &self.mBookownerPortrait,
+                &portStaticPt,
+                // Face anim below
+                &self.mBookownerFaceAnim,
+                &mouthPt,
+                &eyePt,
+                &portWH,
+                totalMouthFrames,
+                totalEyeFrames,
+                eyesVertOffset,
+                &eyeWH,
+            );
+        }
+    }
+
+    // Total hack for lampseller below, beware!
+    fn drawAvatarHack(
+        self: *Self,
+        portStatic: *goImg.GoImage,
+        portStaticPt: *const c.SDL_Point,
+        faceAnim: *goImg.GoImage,
+        mouthPt: *const c.SDL_Point,
+        eyePt: *const c.SDL_Point,
+        portWH: *const c.SDL_Point,
+        totalMouthOffsets: comptime_int,
+        totalEyeOffsets: comptime_int,
+        eyesVertOffset: comptime_int,
+        eyeWH: *const c.SDL_Point,
+    ) !void {
+        defer self.mAvatarTicks += 1;
+
+        // 1. Always draw static avatar portrait, bottom layer.
+        _ = try portStatic.draw(
+            portStaticPt.x,
+            portStaticPt.y,
+            4,
+        );
+
+        // 2. Next draw mouth cycle only when character is talking, next layer.
+        if (self.mGame.getGameSounds().isPlayOldLampsBusy()) {
+            const tickCount = 4;
+
+            if ((self.mAvatarTicks % tickCount) == 0) {
+                self.mAvatarMouthOffset += 1;
+            }
+
+            if (self.mAvatarMouthOffset > (totalMouthOffsets - 1)) {
+                self.mAvatarMouthOffset = 0;
+            }
+
+            faceAnim.mWidth = portWH.x;
+            faceAnim.mHeight = portWH.y;
+
+            _ = try faceAnim.drawEx2(
+                (portStaticPt.x + mouthPt.x),
+                (portStaticPt.y + mouthPt.y),
+                5,
+                1,
+                1,
+                0,
+                255,
+                c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
+                c.SDL_BLENDMODE_BLEND,
+                c.SDL_Rect{
+                    .x = @as(i32, @intCast(self.mAvatarMouthOffset)) * portWH.x,
+                    .y = 0,
+                    .w = portWH.x,
+                    .h = portWH.y,
+                },
+            );
+        }
+
+        // 3. Always draw blinking eyes, top layer no matter what.
+        faceAnim.mWidth = eyeWH.x;
+        faceAnim.mHeight = eyeWH.y;
+
+        if (try utility.getRandomFloat(0, 1) > 0.98 and self.mAvatarEyesAllowedFrames == 0) {
+            self.mAvatarEyesAllowedFrames = 4;
+        }
+
+        const eyesTickCount = 4;
+        if ((self.mAvatarTicks % eyesTickCount) == 0 and self.mAvatarEyesAllowedFrames > 0) {
+            self.mAvatarEyesOffset += 1;
+        }
+
+        if (self.mAvatarEyesOffset > (totalEyeOffsets - 1)) {
+            self.mAvatarEyesOffset = 0;
+        }
+
+        if (self.mAvatarEyesAllowedFrames > 0) {
+            self.mAvatarEyesAllowedFrames -= 1;
+        }
+
+        _ = try faceAnim.drawEx2(
+            portStaticPt.x + eyePt.x,
+            portStaticPt.y + eyePt.y + eyesVertOffset,
+            6,
+            1,
+            1,
+            0,
+            255,
+            c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
+            c.SDL_BLENDMODE_BLEND,
+            c.SDL_Rect{
+                .x = @as(i32, @intCast(self.mAvatarEyesOffset)) * eyeWH.x,
+                .y = eyesVertOffset,
+                .w = @intCast(eyeWH.x),
+                .h = @intCast(eyeWH.y),
+            },
+        );
     }
 
     pub fn click(self: *Self, mouseX: i32, mouseY: i32) !void {

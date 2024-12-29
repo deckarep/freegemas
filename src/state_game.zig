@@ -255,7 +255,7 @@ pub const StateGame = struct {
 
     pub fn loadResources(self: *Self) !void {
         // Load the background image
-        _ = try self.mImgBoard.setWindowAndPath(self.mGame, "media/board.png");
+        _ = try self.mImgBoard.setWindowAndPath(self.mGame, "media/board_kq6.png");
 
         try self.mGameIndicators.loadResources();
         try self.mGameBoard.loadResources();

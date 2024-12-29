@@ -4,6 +4,7 @@ const c = @import("cdefs.zig").c;
 
 pub const GoSound = struct {
     mSample: ?*c.Mix_Chunk = null,
+    mChannel: ?c_int = null,
 
     const Self = @This();
 
@@ -27,6 +28,10 @@ pub const GoSound = struct {
         }
     }
 
+    pub fn setChannel(self: *Self, channelId: i32) void {
+        self.mChannel = channelId;
+    }
+
     pub fn unload(self: *Self) void {
         if (self.mSample) |sample| {
             c.Mix_FreeChunk(sample);
@@ -37,7 +42,14 @@ pub const GoSound = struct {
     pub fn play(self: Self, vol: f32) void {
         if (self.mSample) |sample| {
             _ = c.Mix_VolumeChunk(sample, @intFromFloat(128.0 * vol));
-            _ = c.Mix_PlayChannel(-1, sample, 0);
+            _ = c.Mix_PlayChannel(if (self.mChannel != null) self.mChannel.? else -1, sample, 0);
         }
+    }
+
+    pub fn isPlaying(self: Self) bool {
+        if (self.mSample) |_| {
+            return c.Mix_Playing(if (self.mChannel != null) self.mChannel.? else -1) > 0;
+        }
+        return false;
     }
 };

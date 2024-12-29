@@ -174,13 +174,23 @@ pub const GameBoard = struct {
     }
 
     pub fn loadResources(self: *Self) !void {
-        _ = try self.mImgWhite.setWindowAndPath(self.mGame, "media/gemWhite.png");
-        _ = try self.mImgRed.setWindowAndPath(self.mGame, "media/gemRed.png");
-        _ = try self.mImgPurple.setWindowAndPath(self.mGame, "media/gemPurple.png");
-        _ = try self.mImgOrange.setWindowAndPath(self.mGame, "media/gemOrange.png");
-        _ = try self.mImgGreen.setWindowAndPath(self.mGame, "media/gemGreen.png");
-        _ = try self.mImgYellow.setWindowAndPath(self.mGame, "media/gemYellow.png");
-        _ = try self.mImgBlue.setWindowAndPath(self.mGame, "media/gemBlue.png");
+        // Bookstore owner
+        _ = try self.mImgWhite.setWindowAndPath(self.mGame, "media/lampWhite.png");
+        _ = try self.mImgRed.setWindowAndPath(self.mGame, "media/lampRed.png");
+        _ = try self.mImgPurple.setWindowAndPath(self.mGame, "media/lampPurple.png");
+        _ = try self.mImgOrange.setWindowAndPath(self.mGame, "media/lampOrange.png");
+        _ = try self.mImgGreen.setWindowAndPath(self.mGame, "media/lampGreen.png");
+        _ = try self.mImgYellow.setWindowAndPath(self.mGame, "media/bookBrown.png");
+        _ = try self.mImgBlue.setWindowAndPath(self.mGame, "media/bookBlue.png");
+
+        // Lamp Seller
+        // _ = try self.mImgWhite.setWindowAndPath(self.mGame, "media/lampWhite.png");
+        // _ = try self.mImgRed.setWindowAndPath(self.mGame, "media/lampRed.png");
+        // _ = try self.mImgPurple.setWindowAndPath(self.mGame, "media/lampPurple.png");
+        // _ = try self.mImgOrange.setWindowAndPath(self.mGame, "media/lampOrange.png");
+        // _ = try self.mImgGreen.setWindowAndPath(self.mGame, "media/lampGreen.png");
+        // _ = try self.mImgYellow.setWindowAndPath(self.mGame, "media/lampYellow.png");
+        // _ = try self.mImgBlue.setWindowAndPath(self.mGame, "media/lampBlue.png");
 
         // Load the image for the square selector
         _ = try self.mImgSelector.setWindowAndPath(self.mGame, "media/selector.png");
@@ -319,6 +329,10 @@ pub const GameBoard = struct {
 
                     // Play matching sound
                     self.playMatchSound();
+
+                    if (try utility.getRandomFloat(0, 0.75) > 0 and !self.mGame.getGameSounds().isPlayOldLampsBusy()) {
+                        self.mGame.getGameSounds().playOldLamps();
+                    }
 
                     // Go back to the gems-fading mState
                     self.mState = .eGemDisappearing;

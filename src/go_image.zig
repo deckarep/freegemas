@@ -167,4 +167,49 @@ pub const GoImage = struct {
 
         return true;
     }
+
+    pub fn drawEx2(
+        self: *Self,
+        x: i32,
+        y: i32,
+        z: i32,
+        factorX: f64,
+        factorY: f64,
+        angle: f32,
+        alpha: u8,
+        color: c.SDL_Color,
+        blendMode: c.SDL_BlendMode,
+        srcRect: c.SDL_Rect,
+    ) !bool {
+        //std.debug.assert(self.mParentWindow != null);
+        if (self.mParentWindow == null) {
+            std.log.warn("self: {*} => parent window is null, cannot draw!", .{self});
+            return false;
+        }
+
+        if (self.mTexture == null) {
+            std.log.warn("texture is null, nothing to draw!", .{});
+            return false;
+        }
+
+        const destRect = c.SDL_Rect{
+            .w = @intFromFloat(@as(f64, @floatFromInt(self.mWidth)) * factorX),
+            .h = @intFromFloat(@as(f64, @floatFromInt(self.mHeight)) * factorY),
+            .x = x,
+            .y = y,
+        };
+
+        try self.mParentWindow.?.enqueueDraw2(
+            self.mTexture.?,
+            srcRect,
+            destRect,
+            angle,
+            @floatFromInt(z),
+            alpha,
+            color,
+            blendMode,
+        );
+
+        return true;
+    }
 };

@@ -10,6 +10,7 @@ pub const GameSounds = struct {
     mSfxMatch3: goSnd.GoSound = undefined,
     mSfxSelect: goSnd.GoSound = undefined,
     mSfxFall: goSnd.GoSound = undefined,
+    mSfxOldLamps: goSnd.GoSound = undefined,
 
     const Self = @This();
 
@@ -27,6 +28,9 @@ pub const GameSounds = struct {
             try self.mSfxSelect.setSample("media/select.ogg");
             try self.mSfxFall.setSample("media/fall.ogg");
 
+            try self.mSfxOldLamps.setSample("media/OldLamps.mp3");
+            self.mSfxOldLamps.setChannel(3); // special channel.
+
             self.soundsLoaded = true;
         } else if (!self.options.getSoundEnabled() and self.soundsLoaded) {
             self.mSfxMatch1.unload();
@@ -34,6 +38,7 @@ pub const GameSounds = struct {
             self.mSfxMatch3.unload();
             self.mSfxSelect.unload();
             self.mSfxFall.unload();
+            self.mSfxOldLamps.unload();
 
             self.soundsLoaded = false;
         }
@@ -57,5 +62,13 @@ pub const GameSounds = struct {
 
     pub fn playSoundMatch3(self: Self) void {
         self.mSfxMatch3.play(0.25);
+    }
+
+    pub fn playOldLamps(self: Self) void {
+        self.mSfxOldLamps.play(1.25);
+    }
+
+    pub fn isPlayOldLampsBusy(self: Self) bool {
+        return self.mSfxOldLamps.isPlaying();
     }
 };

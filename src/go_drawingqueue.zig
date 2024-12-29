@@ -7,6 +7,7 @@ pub const DrawingQueueOp = struct {
     // r.c. - added by me, how can you not have blend modes?
     mBlendMode: c.SDL_BlendMode = c.SDL_BLENDMODE_BLEND,
     mTexture: *c.SDL_Texture,
+    mSrcRect: ?c.SDL_Rect = null, // Introducing hack for LampSeller face animation.
     mDstRect: c.SDL_Rect,
     mColor: c.SDL_Color,
     /// mZDepth is used for the priority queue!

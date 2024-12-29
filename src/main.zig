@@ -22,7 +22,7 @@ pub fn main() !void {
     var w = try goWin.GoWindow.init(
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        "Free Gems - Zig Edition - @deckarep",
+        "The Lampseller's Revenge: Old Lamps for New by @deckarep",
         UPDATE_INTERVAL,
         alloc,
     );

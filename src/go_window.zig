@@ -366,7 +366,7 @@ pub const GoWindow = struct {
                 const res = c.SDL_RenderCopyEx(
                     self.mRenderer,
                     op.mTexture,
-                    null,
+                    if (op.mSrcRect != null) &(op.mSrcRect.?) else null,
                     &op.mDstRect,
                     op.mAngle,
                     null,
@@ -419,6 +419,32 @@ pub const GoWindow = struct {
         // Create the new drawing operation and fill it.
         const op = DrawingQueueOp{
             .mTexture = texture,
+            .mDstRect = destRect,
+            .mAngle = angle,
+            .mAlpha = alpha,
+            .mColor = color,
+            .mBlendMode = blendMode,
+        };
+
+        // Store it in the container, sorted by depth.
+        try self.mDrawingQueue.draw(z, op);
+    }
+
+    pub fn enqueueDraw2(
+        self: *Self,
+        texture: *c.SDL_Texture,
+        srcRect: c.SDL_Rect,
+        destRect: c.SDL_Rect,
+        angle: f64,
+        z: f32,
+        alpha: u8,
+        color: c.SDL_Color,
+        blendMode: c.SDL_BlendMode,
+    ) !void {
+        // Create the new drawing operation and fill it.
+        const op = DrawingQueueOp{
+            .mTexture = texture,
+            .mSrcRect = srcRect,
             .mDstRect = destRect,
             .mAngle = angle,
             .mAlpha = alpha,
