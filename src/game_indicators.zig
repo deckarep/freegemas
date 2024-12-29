@@ -226,19 +226,19 @@ pub const GameIndicators = struct {
             try self.mImgTime.draw(190 - self.mImgTime.getWidth(), 232, 3);
         }
 
-        if (false) {
-            if (true) @panic("The lampsellers mouthPt and eyePt must be converted to relative offset from base portrait!");
+        if (true) {
+            //if (true) @panic("The lampsellers mouthPt and eyePt must be converted to relative offset from base portrait!");
             // Lampseller!
             const portStaticPt = c.SDL_Point{ .x = 95, .y = 449 }; // top left corner of static character portrait.
 
-            const mouthPt = c.SDL_Point{ .x = 157, .y = 536 }; // top left corner of mouth x/y
-            const eyePt = c.SDL_Point{ .x = 159, .y = 513 }; // top left corner of eye x/y
+            const mouthPt = c.SDL_Point{ .x = 62, .y = 87 }; // top left corner of mouth x/y
+            const eyePt = c.SDL_Point{ .x = 62, .y = 18 }; // top left corner of eye x/y
 
             const totalMouthFrames = 10; // num mouth frames
             const totalEyeFrames = 3; // num eye frames
             // Mouth w/h for single frame.
-            const portWH = c.SDL_Point{ .x = 34, .y = 44 };
-            const eyeWH = c.SDL_Point{ .x = 38, .y = 14 };
+            const mouthWH = c.SDL_Point{ .x = 32, .y = 44 };
+            const eyeWH = c.SDL_Point{ .x = 36, .y = 14 };
             const eyesVertOffset = 46; // eye vertical offset
             // Eye w/h of single frame.
             try self.drawAvatarHack(
@@ -249,7 +249,7 @@ pub const GameIndicators = struct {
                 &self.mLampSellerFaceAnim,
                 &mouthPt,
                 &eyePt,
-                &portWH,
+                &mouthWH,
                 totalMouthFrames,
                 totalEyeFrames,
                 eyesVertOffset,
@@ -258,7 +258,7 @@ pub const GameIndicators = struct {
         }
 
         // TODO: use the KQ6 point score sound effect for gem matching! sound.
-        if (true) {
+        if (false) {
             // Bookowner
             const portStaticPt = c.SDL_Point{ .x = 95, .y = 449 }; // top left corner of static character portrait.
 
