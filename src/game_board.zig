@@ -197,7 +197,7 @@ pub const GameBoard = struct {
         _ = try self.mImgPurple.setWindowAndPath(self.mGame, "media/lampPurple.png");
         _ = try self.mImgOrange.setWindowAndPath(self.mGame, "media/lampOrange.png");
         _ = try self.mImgGreen.setWindowAndPath(self.mGame, "media/lampGreen.png");
-        _ = try self.mImgYellow.setWindowAndPath(self.mGame, "media/lampYellow.png");
+        _ = try self.mImgYellow.setWindowAndPath(self.mGame, "media/themes/kq6/gems/yellow_royalring.png");
         _ = try self.mImgBlue.setWindowAndPath(self.mGame, "media/lampBlue.png");
 
         // Load the image for the square selector

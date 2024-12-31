@@ -8,6 +8,8 @@ const bb = @import("base_button.zig");
 const c = @import("cdefs.zig").c;
 const sg = @import("state_game.zig");
 const utility = @import("utility.zig");
+const glConsts = @import("global_consts.zig");
+const Chars = glConsts.Characters;
 
 pub const GameIndicators = struct {
     mGame: *goWin.GoWindow = undefined,
@@ -29,11 +31,8 @@ pub const GameIndicators = struct {
     mFontTime: goFont.GoFont = undefined,
     mFontScore: goFont.GoFont = undefined,
 
-    mLampSellerPortrait: goImg.GoImage = goImg.GoImage.init(),
-    mLampSellerFaceAnim: goImg.GoImage = goImg.GoImage.init(),
-
-    mBookownerPortrait: goImg.GoImage = goImg.GoImage.init(),
-    mBookownerFaceAnim: goImg.GoImage = goImg.GoImage.init(),
+    mAvatarPortrait: goImg.GoImage = goImg.GoImage.init(),
+    mAvatarFaceAnim: goImg.GoImage = goImg.GoImage.init(),
 
     mImgTimeBackground: goImg.GoImage = goImg.GoImage.init(),
     mImgScoreBackground: goImg.GoImage = goImg.GoImage.init(),
@@ -90,18 +89,16 @@ pub const GameIndicators = struct {
             .a = 128,
         };
 
-        // LampSeller face anim hack
-
         self.mImgScoreHeader = tempHeaderFont.renderTextWithShadow("score", headerColor, 1, 1, headerShadow);
         self.mImgTimeHeader = tempHeaderFont.renderTextWithShadow("time left", headerColor, 1, 1, headerShadow);
 
-        // Lamp Seller
-        _ = try self.mLampSellerPortrait.setWindowAndPath(self.mGame, "media/LampSellerPortrait.png");
-        _ = try self.mLampSellerFaceAnim.setWindowAndPath(self.mGame, "media/LampSellerFaceAnimation.png");
+        // Avatar hack.
+        const portraitPng = Chars[glConsts.getCurrentChar()].PortraitImgPath;
+        _ = try self.mAvatarPortrait.setWindowAndPath(self.mGame, portraitPng);
+        const faceAnimPng = Chars[glConsts.getCurrentChar()].FaceAnimImgPath;
+        _ = try self.mAvatarFaceAnim.setWindowAndPath(self.mGame, faceAnimPng);
 
-        // Book owner
-        _ = try self.mBookownerPortrait.setWindowAndPath(self.mGame, "media/BookownerPortrait.png");
-        _ = try self.mBookownerFaceAnim.setWindowAndPath(self.mGame, "media/BookownerFaceAnimation.png");
+        std.debug.print("loadResources => {s} {s}\n", .{ portraitPng, faceAnimPng });
 
         // Load the background image for the time
         _ = try self.mImgTimeBackground.setWindowAndPath(self.mGame, "media/timeBackground.png");
@@ -201,18 +198,20 @@ pub const GameIndicators = struct {
     }
 
     pub fn draw(self: *Self) !void {
-        // Vertical initial position for the buttons
-        //        const vertButStart = 407;
+        if (true) {
+            // Vertical initial position for the buttons
+            const vertButStart = 407;
 
-        // Draw the buttons
-        // if (self.mHintEnabled) {
-        //     // Hint can be disabled for two reasons:
-        //     // 1. Game ended, so don't render it.
-        //     // 2. TODO: settings to not allow hints.
-        //     try self.mHintButton.draw(17, vertButStart, 2);
-        // }
-        // try self.mResetButton.draw(17, vertButStart + 47, 2);
-        // try self.mExitButton.draw(17, 538, 2);
+            // Draw the buttons
+            if (self.mHintEnabled) {
+                // Hint can be disabled for two reasons:
+                // 1. Game ended, so don't render it.
+                // 2. TODO: settings to not allow hints.
+                try self.mHintButton.draw(17, vertButStart, 2);
+            }
+            try self.mResetButton.draw(17, vertButStart + 47, 2);
+            try self.mExitButton.draw(17, 538, 2);
+        }
 
         // Draw the score
         try self.mImgScoreBackground.draw(17, 124, 2);
@@ -226,68 +225,22 @@ pub const GameIndicators = struct {
             try self.mImgTime.draw(190 - self.mImgTime.getWidth(), 232, 3);
         }
 
-        if (true) {
-            //if (true) @panic("The lampsellers mouthPt and eyePt must be converted to relative offset from base portrait!");
-            // Lampseller!
-            const portStaticPt = c.SDL_Point{ .x = 95, .y = 449 }; // top left corner of static character portrait.
+        const avatar = &Chars[glConsts.getCurrentChar()];
 
-            const mouthPt = c.SDL_Point{ .x = 62, .y = 87 }; // top left corner of mouth x/y
-            const eyePt = c.SDL_Point{ .x = 62, .y = 18 }; // top left corner of eye x/y
-
-            const totalMouthFrames = 10; // num mouth frames
-            const totalEyeFrames = 3; // num eye frames
-            // Mouth w/h for single frame.
-            const mouthWH = c.SDL_Point{ .x = 32, .y = 44 };
-            const eyeWH = c.SDL_Point{ .x = 36, .y = 14 };
-            const eyesVertOffset = 46; // eye vertical offset
-            // Eye w/h of single frame.
-            try self.drawAvatarHack(
-                // Portrait
-                &self.mLampSellerPortrait,
-                &portStaticPt,
-                // Face anim below
-                &self.mLampSellerFaceAnim,
-                &mouthPt,
-                &eyePt,
-                &mouthWH,
-                totalMouthFrames,
-                totalEyeFrames,
-                eyesVertOffset,
-                &eyeWH,
-            );
-        }
-
-        // TODO: use the KQ6 point score sound effect for gem matching! sound.
-        if (false) {
-            // Bookowner
-            const portStaticPt = c.SDL_Point{ .x = 95, .y = 449 }; // top left corner of static character portrait.
-
-            // These are both relative from portStaticPt.
-            const mouthPt = c.SDL_Point{ .x = 62, .y = 84 }; // top left corner of mouth x/y
-            const eyePt = c.SDL_Point{ .x = 56, .y = 38 }; // top left corner of eye x/y
-
-            const totalMouthFrames = 10; // num mouth frames
-            const totalEyeFrames = 3; // num eye frames
-            // Mouth w/h for single frame.
-            const mouthWH = c.SDL_Point{ .x = 26, .y = 22 };
-            const eyeWH = c.SDL_Point{ .x = 32, .y = 4 };
-            const eyesVertOffset = 24; // eye vertical offset
-            // Eye w/h of single frame.
-            try self.drawAvatarHack(
-                // Portrait
-                &self.mBookownerPortrait,
-                &portStaticPt,
-                // Face anim below
-                &self.mBookownerFaceAnim,
-                &mouthPt,
-                &eyePt,
-                &mouthWH,
-                totalMouthFrames,
-                totalEyeFrames,
-                eyesVertOffset,
-                &eyeWH,
-            );
-        }
+        try self.drawAvatarHack(
+            // Portrait
+            &self.mAvatarPortrait,
+            &avatar.PortraitXY,
+            // Face anim below
+            &self.mAvatarFaceAnim,
+            &avatar.MouthXY,
+            &avatar.EyeXY,
+            &avatar.MouthWH,
+            avatar.MouthFrameCnt,
+            avatar.EyeFrameCnt,
+            avatar.EyeVertOffset,
+            &avatar.EyeWH,
+        );
     }
 
     // Total hack for lampseller below, beware!
@@ -299,9 +252,9 @@ pub const GameIndicators = struct {
         mouthPt: *const c.SDL_Point,
         eyePt: *const c.SDL_Point,
         mouthWH: *const c.SDL_Point,
-        totalMouthOffsets: comptime_int,
-        totalEyeOffsets: comptime_int,
-        eyesVertOffset: comptime_int,
+        totalMouthOffsets: usize,
+        totalEyeOffsets: usize,
+        eyesVertOffset: usize,
         eyeWH: *const c.SDL_Point,
     ) !void {
         defer self.mAvatarTicks += 1;
@@ -370,7 +323,7 @@ pub const GameIndicators = struct {
 
         _ = try faceAnim.drawEx2(
             portStaticPt.x + eyePt.x,
-            portStaticPt.y + eyePt.y + eyesVertOffset,
+            portStaticPt.y + eyePt.y + @as(i32, @intCast(eyesVertOffset)),
             6,
             1,
             1,
@@ -380,7 +333,7 @@ pub const GameIndicators = struct {
             c.SDL_BLENDMODE_BLEND,
             c.SDL_Rect{
                 .x = @as(i32, @intCast(self.mAvatarEyesOffset)) * (eyeWH.x + 2),
-                .y = eyesVertOffset,
+                .y = @intCast(eyesVertOffset),
                 .w = @intCast(eyeWH.x),
                 .h = @intCast(eyeWH.y),
             },
@@ -395,6 +348,7 @@ pub const GameIndicators = struct {
 
         // Exit button was clicked
         if (self.mExitButton.clicked(mX, mY)) {
+            glConsts.selectNextChar();
             try self.mGame.changeState("stateMainMenu");
         }
 

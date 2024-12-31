@@ -6,6 +6,7 @@ const goFont = @import("go_font.zig");
 const goWin = @import("go_window.zig");
 const c = @import("cdefs.zig").c;
 const st = @import("state.zig");
+const glConsts = @import("global_consts.zig");
 
 /// Instead of doing another level of inheritance, the ONLY thing
 /// different between StateGameEndless vs StateGameTimetrial
@@ -254,8 +255,9 @@ pub const StateGame = struct {
     // ----------------------------------------------------------------------------
 
     pub fn loadResources(self: *Self) !void {
-        // Load the background image
-        _ = try self.mImgBoard.setWindowAndPath(self.mGame, "media/board_kq6.png");
+        // Load the background image for the given character.
+        const charBGPath = glConsts.Characters[glConsts.getCurrentChar()].BackgroundImgPath;
+        _ = try self.mImgBoard.setWindowAndPath(self.mGame, charBGPath);
 
         try self.mGameIndicators.loadResources();
         try self.mGameBoard.loadResources();

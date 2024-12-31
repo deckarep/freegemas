@@ -195,99 +195,10 @@ pub const Board = struct {
         }
     }
 
-    /// Checks if there are matching horizontal and/or vertical groups.
-    /// The inner for loop checks GRID_SIZE - 2 because to avoid out
-    /// of bounds checks and because at least 3 consecutive squares
-    /// are needed to be a match.
-    /// A multi-match is simply all the horizontal and/or vertical
-    /// matchings that were identified.
-    ///
-    /// NOTE: The caller owns the returned MultiMatch and must always deinit.
-    pub fn check(self: *Self) !mm.MultiMatch {
-        const start = try std.time.Instant.now();
-        std.debug.print("board::check started...\n", .{});
-
-        // r.c. better expressed as a usize vs i32.
-        var k: usize = undefined;
-
-        // WARN: In terms of memory leaks I *think* I accounted for all cases.
-        // For Zig, I added a cleanupHook to capture anything NOT added to
-        // the returned multi match. This way, those allocations while never
-        // returned to the caller can still be cleaned up.
-
-        var matches = mm.MultiMatch.init(self.allocator);
-        var cleanupHook = mm.MultiMatch.init(self.allocator);
-        defer cleanupHook.deinit(); // Always fire deinit whether its populated or not.
-
-        // First, we check each row (horizontal)
-        for (0..GRID_SIZE) |y| {
-            var x: usize = 0;
-            while (x < GRID_SIZE - 2) : (x += 1) {
-                var currentRow = mch.Match.init(self.allocator);
-                try currentRow.pushBack(co.Coord{ .x = x, .y = y });
-
-                k = x + 1;
-                while (k < GRID_SIZE) : (k += 1) {
-                    if (self.squares[x][y].eql(self.squares[k][y]) and
-                        self.squares[x][y].tSquare() != .sqEmpty)
-                    {
-                        try currentRow.pushBack(co.Coord{ .x = k, .y = y });
-                    } else {
-                        break;
-                    }
-                }
-
-                if (currentRow.size() > 2) {
-                    try matches.pushBack(currentRow);
-                } else {
-                    // We must still capture this allocation to ensure cleanup!
-                    try cleanupHook.pushBack(currentRow);
-                }
-
-                x = k - 1;
-            }
-        }
-
-        // Next, check each column (vertical)
-        for (0..GRID_SIZE) |x| {
-            var y: usize = 0;
-            while (y < GRID_SIZE - 2) : (y += 1) {
-                var currentColumn = mch.Match.init(self.allocator);
-                try currentColumn.pushBack(co.Coord{ .x = x, .y = y });
-
-                k = y + 1;
-                while (k < GRID_SIZE) : (k += 1) {
-                    if (self.squares[x][y].eql(self.squares[x][k]) and
-                        self.squares[x][y].tSquare() != .sqEmpty)
-                    {
-                        try currentColumn.pushBack(co.Coord{ .x = x, .y = k });
-                    } else {
-                        break;
-                    }
-                }
-
-                if (currentColumn.size() > 2) {
-                    try matches.pushBack(currentColumn);
-                } else {
-                    // We must still capture this allocation to ensure cleanup!
-                    try cleanupHook.pushBack(currentColumn);
-                }
-
-                y = k - 1;
-            }
-        }
-
-        // Measure elapsed.
-        const end = try std.time.Instant.now();
-        const elapsed: f64 = @floatFromInt(end.since(start));
-        std.debug.print("board::check finished in {d:.3}ms...\n", .{elapsed / std.time.ns_per_ms});
-
-        return matches;
-    }
-
     // Low-hanging fruit for optimization
     // 0. ✅ Square methods should be inlined.
     // 1. ✅ As long as at least one move exists, solutions should early return (at least in some cases).
+    // 2. ✅ Check function: now LAZILY allocates memory ONLY if necessary, this yielded around a 20x performance gain.
     // 2. Better cache coherency: Both solutions and check could operate on [8][8]SquareType which has a @sizeOf() 64 bytes.
     //    This would be significantly better than what it's doing now: [8][8]Square => @sizeOf() 1024 bytes.
 
@@ -397,6 +308,114 @@ pub const Board = struct {
         const elapsed: f64 = @floatFromInt(end.since(start));
         std.debug.print("board::solutions finished in {d:.3}ms...\n", .{elapsed / std.time.ns_per_ms});
         return results;
+    }
+
+    /// Checks if there are matching horizontal and/or vertical groups.
+    /// The inner for loop checks GRID_SIZE - 2 because to avoid out
+    /// of bounds checks and because at least 3 consecutive squares
+    /// are needed to be a match.
+    /// A multi-match is simply all the horizontal and/or vertical
+    /// matchings that were identified.
+    ///
+    /// NOTE: The caller owns the returned MultiMatch and must always deinit.
+    pub fn check(self: *Self) !mm.MultiMatch {
+        const start = try std.time.Instant.now();
+        std.debug.print("board::check started...\n", .{});
+
+        // r.c. better expressed as a usize vs i32.
+        var k: usize = undefined;
+
+        // WARN: In terms of memory leaks I *think* I accounted for all cases.
+        // For Zig, I added a cleanupHook to capture anything NOT added to
+        // the returned multi match. This way, those allocations while never
+        // returned to the caller can still be cleaned up.
+
+        var matches = mm.MultiMatch.init(self.allocator);
+        var cleanupHook = mm.MultiMatch.init(self.allocator);
+        defer cleanupHook.deinit(); // Always fire deinit whether its populated or not.
+
+        // First, we check each row (horizontal)
+        for (0..GRID_SIZE) |y| {
+            var x: usize = 0;
+            while (x < GRID_SIZE - 2) : (x += 1) {
+                // Optimization: currentRow is lazily instantiated only if necessary.
+                var currentRow: ?mch.Match = null;
+                // Record the anchor coord incase we need it later.
+                const anchor = co.Coord{ .x = x, .y = y };
+
+                k = x + 1;
+                while (k < GRID_SIZE) : (k += 1) {
+                    if (self.squares[x][y].eql(self.squares[k][y]) and
+                        self.squares[x][y].tSquare() != .sqEmpty)
+                    {
+                        if (currentRow == null) {
+                            currentRow = mch.Match.init(self.allocator);
+                            try currentRow.?.pushBack(anchor);
+                        }
+
+                        try currentRow.?.pushBack(co.Coord{ .x = k, .y = y });
+                    } else {
+                        break;
+                    }
+                }
+
+                if (currentRow) |cr| {
+                    if (cr.size() > 2) {
+                        try matches.pushBack(cr);
+                    } else {
+                        // We must still capture this allocation to ensure cleanup!
+                        try cleanupHook.pushBack(cr);
+                    }
+                }
+
+                x = k - 1;
+            }
+        }
+
+        // Next, check each column (vertical)
+        for (0..GRID_SIZE) |x| {
+            var y: usize = 0;
+            while (y < GRID_SIZE - 2) : (y += 1) {
+                // Optimization: currentRow is lazily instantiated only if necessary.
+                var currentCol: ?mch.Match = null;
+                // Record the anchor coord incase we need it later.
+                const anchor = co.Coord{ .x = x, .y = y };
+
+                k = y + 1;
+                while (k < GRID_SIZE) : (k += 1) {
+                    if (self.squares[x][y].eql(self.squares[x][k]) and
+                        self.squares[x][y].tSquare() != .sqEmpty)
+                    {
+                        if (currentCol == null) {
+                            currentCol = mch.Match.init(self.allocator);
+                            try currentCol.?.pushBack(anchor);
+                        }
+
+                        try currentCol.?.pushBack(co.Coord{ .x = x, .y = k });
+                    } else {
+                        break;
+                    }
+                }
+
+                if (currentCol) |cc| {
+                    if (cc.size() > 2) {
+                        try matches.pushBack(cc);
+                    } else {
+                        // We must still capture this allocation to ensure cleanup!
+                        try cleanupHook.pushBack(cc);
+                    }
+                }
+
+                y = k - 1;
+            }
+        }
+
+        // Measure elapsed.
+        const end = try std.time.Instant.now();
+        const elapsed: f64 = @floatFromInt(end.since(start));
+        std.debug.print("board::check finished in {d:.3}ms...\n", .{elapsed / std.time.ns_per_ms});
+
+        return matches;
     }
 
     /// Resets squares' animations
