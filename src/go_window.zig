@@ -63,6 +63,10 @@ pub const GoWindow = struct {
 
     mCaption: [:0]const u8 = undefined,
 
+    // Screen shake params
+    mShakeIntensity: f32 = 5.0,
+    mShakeDuration: f32 = 0.0,
+
     /// Sounds controller
     //GameSounds mGameSounds;
 
@@ -256,6 +260,9 @@ pub const GoWindow = struct {
     fn mouseButtonUp(self: *Self, button: u8) !void {
         if (self.mCurrentState) |cs| {
             try cs.mouseButtonUp(button);
+
+            // TODO: for testing purposes only. Remove this!!!!
+            //self.startScreenShake(0.8, 6.0);
         }
     }
 
@@ -341,6 +348,9 @@ pub const GoWindow = struct {
             // Process drawing
             try self.draw();
 
+            // Screenshake when needed.
+            try self.applyScreenShake(self.mRenderer.?);
+
             // Render the background clear
             _ = c.SDL_RenderClear(self.mRenderer);
 
@@ -404,6 +414,41 @@ pub const GoWindow = struct {
 
     pub inline fn getGameSounds(self: *Self) *gs.GameSounds {
         return &self.mGameSounds;
+    }
+
+    pub fn startScreenShake(self: *Self, duration: f32, intensity: f32) void {
+        // Only set, if it's not shaking.
+        if (self.mShakeDuration <= 0.0) {
+            self.mShakeIntensity = intensity;
+            self.mShakeDuration = duration;
+        }
+    }
+
+    pub fn applyScreenShake(self: *Self, renderer: *c.SDL_Renderer) !void {
+        if (self.mShakeDuration > 0.0) {
+            const rx = try utility.getRandomFloat(0.0, 5.0);
+            const ry = try utility.getRandomFloat(0.0, 5.0);
+
+            // Generate random offsets for the shake
+            const offset_x: f32 = @mod(rx, self.mShakeIntensity) * 2.0 - self.mShakeIntensity;
+            const offset_y: f32 = @mod(ry, self.mShakeIntensity) * 2.0 - self.mShakeIntensity;
+
+            // Apply the offset by translating the rendering pipeline
+            _ = c.SDL_RenderSetLogicalSize(renderer, 800, 600);
+            _ = c.SDL_RenderSetViewport(renderer, &c.SDL_Rect{
+                .x = @intFromFloat(offset_x),
+                .y = @intFromFloat(offset_y),
+                .w = 800,
+                .h = 600,
+            });
+
+            // Reduce the shake duration over time
+            self.mShakeDuration -= 0.1; // `delta_time` should be the frame time
+        } else {
+            // Reset the shake when the duration is over
+            _ = c.SDL_RenderSetViewport(renderer, null); // Use the default viewport
+            self.mShakeDuration = 0.0;
+        }
     }
 
     pub fn enqueueDraw(

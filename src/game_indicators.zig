@@ -263,7 +263,7 @@ pub const GameIndicators = struct {
         _ = try portStatic.draw(
             portStaticPt.x,
             portStaticPt.y,
-            4,
+            36,
         );
 
         // 2. MOUTH: Next draw mouth cycle only when character is talking, next layer.
@@ -284,7 +284,7 @@ pub const GameIndicators = struct {
             _ = try faceAnim.drawEx2(
                 (portStaticPt.x + mouthPt.x),
                 (portStaticPt.y + mouthPt.y),
-                5,
+                37,
                 1,
                 1,
                 0,
@@ -324,7 +324,7 @@ pub const GameIndicators = struct {
         _ = try faceAnim.drawEx2(
             portStaticPt.x + eyePt.x,
             portStaticPt.y + eyePt.y + @as(i32, @intCast(eyesVertOffset)),
-            6,
+            38,
             1,
             1,
             0,

@@ -330,6 +330,9 @@ pub const GameBoard = struct {
                 }
                 self.mGroupedSquares = try self.mBoard.check();
 
+                // NOTE: when this if condition fires below it's the result
+                // of cascade matches, not the player's initial match!
+                // So for example, we do a screen shake with a multiplier applied.
                 // If there are...
                 if (!self.mGroupedSquares.?.empty()) {
                     // Increase the score mMultiplier
@@ -338,9 +341,13 @@ pub const GameBoard = struct {
                     // Create the floating scores
                     try self.createFloatingScores();
 
+                    // Start shake
+                    self.mGame.startScreenShake(0.8, 3.0 * @as(f32, @floatFromInt(self.mMultiplier)));
+
                     // Play matching sound
                     self.playMatchSound();
 
+                    // Avatar sound hack when a match was played.
                     if (try utility.getRandomFloat(0, 0.75) > 0 and !self.mGame.getGameSounds().isPlayOldLampsBusy()) {
                         self.mGame.getGameSounds().playOldLamps();
                     }
@@ -505,6 +512,7 @@ pub const GameBoard = struct {
                 var imgX: i32 = posX + @as(i32, @intCast(i)) * 65;
                 var imgY: i32 = posY + @as(i32, @intCast(j)) * 65;
                 var imgAlpha: u8 = 255;
+                var imgBlendMode: c.SDL_BlendMode = c.SDL_BLENDMODE_BLEND;
 
                 // When the board is first appearing, all the gems are falling
                 if (self.mState == .eBoardAppearing) {
@@ -568,6 +576,7 @@ pub const GameBoard = struct {
                             const cs: f32 = @floatFromInt(self.mAnimationCurrentStep);
                             const ts: f32 = @floatFromInt(self.mAnimationShortTotalSteps);
                             imgAlpha = @intFromFloat(255.0 * (1.0 - cs / ts));
+                            imgBlendMode = c.SDL_BLENDMODE_ADD;
                         }
                     }
                 }
@@ -611,7 +620,7 @@ pub const GameBoard = struct {
                         .b = 255,
                         .a = 255,
                     },
-                    c.SDL_BLENDMODE_BLEND,
+                    imgBlendMode,
                 );
             }
         }
@@ -841,7 +850,7 @@ pub const GameBoard = struct {
                         blockMidY,
                         60,
                         0.5,
-                        c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
+                        c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 128 },
                         self.allocator,
                     ));
 
