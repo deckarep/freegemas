@@ -37,6 +37,7 @@ pub const FloatingScore = struct {
     pub fn init(pw: *goWin.GoWindow, score: i32, x: f32, y: f32, z: f32, delay: i32) !Self {
         var tempFont = goFont.GoFont.init();
         try tempFont.setAll(pw, "media/gloryquest.ttf", 46); //fuenteNormal.ttf", 30); //60);
+        defer tempFont.deinit();
 
         var buf: [8]u8 = undefined;
         const scoreTxt = try std.fmt.bufPrintZ(&buf, "{d}", .{score});
