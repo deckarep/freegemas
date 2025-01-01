@@ -25,7 +25,7 @@ pub const Board = struct {
 
 // Particles
 pub const Particles = struct {
-    pub const SpawnQuantity = 50;
+    pub const SpawnQuantity = 15;
 };
 
 // Theme / Avatars

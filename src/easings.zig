@@ -20,7 +20,7 @@ pub fn easeInOutQuad(t: f32, b: f32, c: f32, d: f32) f32 {
     if (mutT < 1) {
         return c / 2 * mutT * mutT + b;
     } else {
-        --mutT;
+        mutT -= 1;
         return -c / 2 * ((mutT) * (mutT - 2) - 1) + b;
     }
 }

@@ -336,7 +336,7 @@ pub const GameBoard = struct {
                     self.mMultiplier += 1;
 
                     // Create the floating scores
-                    // TODO: self.createFloatingScores();
+                    try self.createFloatingScores();
 
                     // Play matching sound
                     self.playMatchSound();
@@ -816,28 +816,41 @@ pub const GameBoard = struct {
             for (gs.super.items) |*m| {
                 const score = @as(i32, @intCast(m.size())) * pointsPerGem * self.mMultiplier;
 
+                // NOTE: This creates a large, somewhat centered SINGLE floating score.
                 // Create a new floating score image
-                try self.mFloatingScores.append(try fs.FloatingScore.init(
-                    self.mGame,
-                    score,
-                    @floatFromInt(m.midSquare().x.?),
-                    @floatFromInt(m.midSquare().y.?),
-                    80,
-                ));
+                // try self.mFloatingScores.append(try fs.FloatingScore.init(
+                //     self.mGame,
+                //     score,
+                //     @floatFromInt(m.midSquare().x.?),
+                //     @floatFromInt(m.midSquare().y.?),
+                //     80,
+                // ));
 
                 // Create a new particle system for it to appear over the square
                 for (0..m.size()) |i| {
+                    const blockMidX = glConsts.Board.XOffset + @as(i32, @intCast(m.super.items[i].x.?)) * glConsts.Board.GemWH + glConsts.Board.GemHalfWH;
+                    const blockMidY = glConsts.Board.YOffset + @as(i32, @intCast(m.super.items[i].y.?)) * glConsts.Board.GemWH + glConsts.Board.GemHalfWH;
+
                     try self.mParticleSysList.append(try ps.ParticleSystem.init(
                         &self.mImgParticle1,
                         &self.mImgParticle2,
                         glConsts.Particles.SpawnQuantity,
                         50,
-                        glConsts.Board.XOffset + @as(i32, @intCast(m.super.items[i].x.?)) * glConsts.Board.GemWH + 32,
-                        glConsts.Board.YOffset + @as(i32, @intCast(m.super.items[i].y.?)) * glConsts.Board.GemWH + 32,
+                        blockMidX,
+                        blockMidY,
                         60,
                         0.5,
                         c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 255 },
                         self.allocator,
+                    ));
+
+                    // NOTE: This creates a single score per block.
+                    try self.mFloatingScores.append(try fs.FloatingScore.init(
+                        self.mGame,
+                        @divTrunc(score, @as(i32, @intCast(m.size()))),
+                        @floatFromInt(@as(i32, @intCast(m.super.items[i].x.?))),
+                        @floatFromInt(@as(i32, @intCast(m.super.items[i].y.?))),
+                        80,
                     ));
                 }
 
@@ -870,8 +883,8 @@ pub const GameBoard = struct {
         while (i > 0) : (i -= 1) {
             const partList = &list.items[i - 1];
             if (partList.ended()) {
-                defer partList.deinit();
-                _ = list.swapRemove(i - 1);
+                const removedItem = list.swapRemove(i - 1);
+                removedItem.deinit();
             }
         }
     }
