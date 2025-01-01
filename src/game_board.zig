@@ -817,6 +817,7 @@ pub const GameBoard = struct {
                 const score = @as(i32, @intCast(m.size())) * pointsPerGem * self.mMultiplier;
 
                 // NOTE: This creates a large, somewhat centered SINGLE floating score.
+                // But it's changed to showing an individual score per block!
                 // Create a new floating score image
                 // try self.mFloatingScores.append(try fs.FloatingScore.init(
                 //     self.mGame,
@@ -851,6 +852,7 @@ pub const GameBoard = struct {
                         @floatFromInt(@as(i32, @intCast(m.super.items[i].x.?))),
                         @floatFromInt(@as(i32, @intCast(m.super.items[i].y.?))),
                         80,
+                        @as(i32, @intCast(i)),
                     ));
                 }
 

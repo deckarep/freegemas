@@ -4,6 +4,7 @@ const goFont = @import("go_font.zig");
 const goImg = @import("go_image.zig");
 const glConsts = @import("global_consts.zig");
 const easings = @import("easings.zig");
+const utility = @import("utility.zig");
 const c = @import("cdefs.zig").c;
 
 const scoreColor = c.SDL_Color{
@@ -28,14 +29,14 @@ pub const FloatingScore = struct {
     y_: f32 = 0,
     z_: f32 = 0,
 
-    mCurrentStep: i32 = 0,
-    mTotalSteps: i32 = 50,
+    mCurrentStep: i32 = -15, //0,
+    mTotalSteps: i32 = 30, //50,
 
     const Self = @This();
 
-    pub fn init(pw: *goWin.GoWindow, score: i32, x: f32, y: f32, z: f32) !Self {
+    pub fn init(pw: *goWin.GoWindow, score: i32, x: f32, y: f32, z: f32, delay: i32) !Self {
         var tempFont = goFont.GoFont.init();
-        try tempFont.setAll(pw, "media/fuentelcd.ttf", 30); //60);
+        try tempFont.setAll(pw, "media/gloryquest.ttf", 35); //fuenteNormal.ttf", 30); //60);
 
         var buf: [8]u8 = undefined;
         const scoreTxt = try std.fmt.bufPrintZ(&buf, "{d}", .{score});
@@ -44,6 +45,8 @@ pub const FloatingScore = struct {
             .x_ = x,
             .y_ = y,
             .z_ = z,
+
+            .mCurrentStep = -5 - (delay * 4),
 
             // Build the image
             .mScoreImage = tempFont.renderText(scoreTxt, scoreColor),
@@ -60,12 +63,14 @@ pub const FloatingScore = struct {
 
         self.mCurrentStep += 1;
 
+        if (self.mCurrentStep < 0) return;
+
         // NOTE: Change from this
         //const p: f32 = 1.0 - @as(f32, @floatFromInt(self.mCurrentStep)) / @as(f32, @floatFromInt(self.mTotalSteps));
         //const alpha: u8 = @intFromFloat(p * 255);
 
         // To a more fluid easing.
-        const p: f32 = 1.0 - easings.easeOutQuart(
+        const p: f32 = 1.0 - easings.easeOutQuad(
             @floatFromInt(self.mCurrentStep),
             @floatFromInt(0),
             1.0,
@@ -76,7 +81,8 @@ pub const FloatingScore = struct {
 
         // Now adding the gem half w/h for both x/y final positions.
         // TODO: measure texture and center it as well.
-        const posX: f32 = glConsts.Board.XOffset + self.x_ * glConsts.Board.GemWH + glConsts.Board.GemHalfWH;
+        const imgHalf = @as(f32, @floatFromInt(self.mScoreImage.getWidth())) / 2.0;
+        const posX: f32 = glConsts.Board.XOffset + self.x_ * glConsts.Board.GemWH + glConsts.Board.GemHalfWH - imgHalf;
         const posY: f32 = glConsts.Board.YOffset + self.y_ * glConsts.Board.GemWH + glConsts.Board.GemHalfWH - (1 - p) * 20;
 
         // Drop shadow.

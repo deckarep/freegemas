@@ -21,6 +21,13 @@ pub const Board = struct {
     pub const GemHalfWH = Board.GemWH / 2;
 };
 
+// Audio
+pub const Sfx = struct {
+    pub const Match1 = "media/themes/kq6/audio/kings_quest_6_ding.mp3";
+    pub const Match2 = "media/themes/kq6/audio/kings_quest_6_ding.mp3";
+    pub const Match3 = "media/themes/kq6/audio/kings_quest_6_ding.mp3";
+};
+
 // Common Colors (TODO)
 
 // Particles

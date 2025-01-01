@@ -1,4 +1,5 @@
 const goSnd = @import("go_sound.zig");
+const glConsts = @import("global_consts.zig");
 const om = @import("options_manager.zig");
 
 pub const GameSounds = struct {
@@ -22,9 +23,9 @@ pub const GameSounds = struct {
         self.options.loadResources();
 
         if (self.options.getSoundEnabled() and !self.soundsLoaded) {
-            try self.mSfxMatch1.setSample("media/match1.ogg");
-            try self.mSfxMatch2.setSample("media/match2.ogg");
-            try self.mSfxMatch3.setSample("media/match3.ogg");
+            try self.mSfxMatch1.setSample(glConsts.Sfx.Match1);
+            try self.mSfxMatch2.setSample(glConsts.Sfx.Match1);
+            try self.mSfxMatch3.setSample(glConsts.Sfx.Match1);
             try self.mSfxSelect.setSample("media/select.ogg");
             try self.mSfxFall.setSample("media/fall.ogg");
 
@@ -53,15 +54,15 @@ pub const GameSounds = struct {
     }
 
     pub fn playSoundMatch1(self: Self) void {
-        self.mSfxMatch1.play(0.25);
+        self.mSfxMatch1.play(0.55);
     }
 
     pub fn playSoundMatch2(self: Self) void {
-        self.mSfxMatch2.play(0.25);
+        self.mSfxMatch2.play(0.55);
     }
 
     pub fn playSoundMatch3(self: Self) void {
-        self.mSfxMatch3.play(0.25);
+        self.mSfxMatch3.play(0.55);
     }
 
     pub fn playOldLamps(self: Self) void {
