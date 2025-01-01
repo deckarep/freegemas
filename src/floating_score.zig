@@ -15,9 +15,9 @@ const scoreColor = c.SDL_Color{
 };
 
 const scoreShadowColor = c.SDL_Color{
-    .r = 0,
-    .g = 0,
-    .b = 0,
+    .r = 114,
+    .g = 61,
+    .b = 69,
     .a = 255,
 };
 
@@ -36,7 +36,7 @@ pub const FloatingScore = struct {
 
     pub fn init(pw: *goWin.GoWindow, score: i32, x: f32, y: f32, z: f32, delay: i32) !Self {
         var tempFont = goFont.GoFont.init();
-        try tempFont.setAll(pw, "media/gloryquest.ttf", 35); //fuenteNormal.ttf", 30); //60);
+        try tempFont.setAll(pw, "media/gloryquest.ttf", 46); //fuenteNormal.ttf", 30); //60);
 
         var buf: [8]u8 = undefined;
         const scoreTxt = try std.fmt.bufPrintZ(&buf, "{d}", .{score});
