@@ -19,6 +19,19 @@ pub const GameSounds = struct {
         return Self{};
     }
 
+    pub fn deinit(self: *Self) void {
+        self.destroyResources();
+    }
+
+    pub fn destroyResources(self: *Self) void {
+        self.mSfxMatch1.deinit();
+        self.mSfxMatch2.deinit();
+        self.mSfxMatch3.deinit();
+        self.mSfxSelect.deinit();
+        self.mSfxFall.deinit();
+        self.mSfxOldLamps.deinit();
+    }
+
     pub fn loadResources(self: *Self) !void {
         self.options.loadResources();
 
@@ -34,13 +47,7 @@ pub const GameSounds = struct {
 
             self.soundsLoaded = true;
         } else if (!self.options.getSoundEnabled() and self.soundsLoaded) {
-            self.mSfxMatch1.unload();
-            self.mSfxMatch2.unload();
-            self.mSfxMatch3.unload();
-            self.mSfxSelect.unload();
-            self.mSfxFall.unload();
-            self.mSfxOldLamps.unload();
-
+            self.destroyResources();
             self.soundsLoaded = false;
         }
     }

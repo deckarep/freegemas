@@ -9,7 +9,10 @@ const StateHowToPlay = @import("state_how_to_play.zig").StateHowToPlay;
 const StateMainMenu = @import("state_main_menu.zig").StateMainMenu;
 const goImg = @import("go_image.zig");
 const gs = @import("game_sounds.zig");
+const cl = @import("go_cacheloader.zig");
 const c = @import("cdefs.zig").c;
+
+var drawErrors: usize = 0;
 
 // Temporarily public for troubleshooting.
 pub var howToPlay: ?StateHowToPlay = null;
@@ -67,6 +70,9 @@ pub const GoWindow = struct {
     mShakeIntensity: f32 = 5.0,
     mShakeDuration: f32 = 0.0,
 
+    // Cache loader - only a single instance
+    mCacheLoader: *cl.CacheLoader,
+
     /// Sounds controller
     //GameSounds mGameSounds;
 
@@ -83,8 +89,10 @@ pub const GoWindow = struct {
         allocator: std.mem.Allocator,
     ) !Self {
         std.debug.print("GoWindow::init()\n", .{});
+        cl.initCacheLoader(allocator);
         const o = Self{
             .allocator = allocator,
+            .mCacheLoader = cl.getCacheLoader(),
             .mCaption = caption,
             .mWidth = width,
             .mHeight = height,
@@ -111,6 +119,8 @@ pub const GoWindow = struct {
     pub fn deinit(self: *Self) void {
         // self.closeAllGameControllers();
         self.mDrawingQueue.deinit();
+
+        self.mMouseCursor.deinit();
 
         // TODO: clean up the states: state_game, state_how_to_play, state_main_menu, etc.
         if (gamePlayEndless) |*ge| {
@@ -139,6 +149,10 @@ pub const GoWindow = struct {
             c.SDL_DestroyWindow(win);
             self.mWindow = null;
         }
+
+        self.mGameSounds.deinit();
+
+        self.mCacheLoader.deinit();
 
         // Quit SDL subsystems.
         c.Mix_Quit();
@@ -386,6 +400,12 @@ pub const GoWindow = struct {
                 // Check for errors when drawing
                 if (res != 0) {
                     std.log.err("error on drawing texture: {s}", .{std.mem.span(c.SDL_GetError())});
+                    drawErrors += 1;
+                }
+
+                if (drawErrors > 5) {
+                    std.debug.print("Bailing...too many drawErrors > {d}!\n", .{drawErrors});
+                    std.process.exit(128);
                 }
             }
 
@@ -414,6 +434,10 @@ pub const GoWindow = struct {
 
     pub inline fn getGameSounds(self: *Self) *gs.GameSounds {
         return &self.mGameSounds;
+    }
+
+    pub inline fn getCacheLoader(self: *Self) *cl.CacheLoader {
+        return &self.mCacheLoader;
     }
 
     pub fn startScreenShake(self: *Self, duration: f32, intensity: f32) void {
@@ -536,17 +560,35 @@ pub const GoWindow = struct {
     }
 
     pub fn changeState(self: *Self, newState: []const u8) !void {
+        // TODO: maybe it's better to clean things up here.
+        // This is now redundant with the code below partially.
+        // 1. Clean up...
+        if (gamePlayEndless) |*gpe| {
+            // If a prev instance existed from user going back and switching states.
+            // Clean this instance up, then allow a fresh one to be created and setup.
+            gpe.deinit();
+            gamePlayEndless = null;
+        }
+
+        if (gamePlayTimetrial) |*gptt| {
+            // If a prev instance existed from user going back and switching states.
+            // Clean this instance up, then allow a fresh one to be created and setup.
+            gptt.deinit();
+            gamePlayTimetrial = null;
+        }
+
+        // 2. Now select state.
         if (std.mem.eql(u8, newState, self.mCurrentStateStr)) {
             return;
         } else if (std.mem.eql(u8, newState, "stateQuit")) {
             self.close();
         } else if (std.mem.eql(u8, newState, "stateGameEndless")) {
-            if (gamePlayEndless) |*gpe| {
-                // If a prev instance existed from user going back and switching states.
-                // Clean this instance up, then allow a fresh one to be created and setup.
-                gpe.deinit();
-                gamePlayEndless = null;
-            }
+            // if (gamePlayEndless) |*gpe| {
+            //     // If a prev instance existed from user going back and switching states.
+            //     // Clean this instance up, then allow a fresh one to be created and setup.
+            //     gpe.deinit();
+            //     gamePlayEndless = null;
+            // }
 
             gamePlayEndless = try StateGame.init(.eEndless, self, self.allocator);
 
@@ -556,12 +598,12 @@ pub const GoWindow = struct {
             self.mCurrentState = stater;
             self.mCurrentStateStr = "stateGameEndless";
         } else if (std.mem.eql(u8, newState, "stateGameTimetrial")) {
-            if (gamePlayTimetrial) |*gptt| {
-                // If a prev instance existed from user going back and switching states.
-                // Clean this instance up, then allow a fresh one to be created and setup.
-                gptt.deinit();
-                gamePlayTimetrial = null;
-            }
+            // if (gamePlayTimetrial) |*gptt| {
+            //     // If a prev instance existed from user going back and switching states.
+            //     // Clean this instance up, then allow a fresh one to be created and setup.
+            //     gptt.deinit();
+            //     gamePlayTimetrial = null;
+            // }
 
             gamePlayTimetrial = try StateGame.init(.eTimetrial, self, self.allocator);
 

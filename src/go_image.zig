@@ -1,6 +1,7 @@
 const std = @import("std");
 const utility = @import("utility.zig");
 const goWin = @import("go_window.zig");
+const cl = @import("go_cacheloader.zig");
 const c = @import("cdefs.zig").c;
 
 pub const GoImage = struct {
@@ -31,7 +32,9 @@ pub const GoImage = struct {
         self.mParentWindow = null;
 
         if (self.mTexture) |txt| {
-            c.SDL_DestroyTexture(txt);
+            const cache = cl.getCacheLoader();
+            cache.DestroyImage(txt);
+            //c.SDL_DestroyTexture(txt);
             self.mTexture = null;
         }
     }
@@ -44,7 +47,7 @@ pub const GoImage = struct {
     pub fn setPath(self: *Self, path: []const u8) !void {
         var buf: [128]u8 = undefined;
         const finalPath = try std.fmt.bufPrintZ(&buf, "{s}{s}", .{ utility.getBasePath(), path });
-        _ = self.loadTexture(finalPath);
+        _ = try self.loadTexture(finalPath);
     }
 
     pub fn setWindowAndPath(self: *Self, pw: *goWin.GoWindow, path: []const u8) !bool {
@@ -52,24 +55,31 @@ pub const GoImage = struct {
 
         var buf: [128]u8 = undefined;
         const finalPath = try std.fmt.bufPrintZ(&buf, "{s}{s}", .{ utility.getBasePath(), path });
-        std.debug.print("finalPath => {s}\n", .{finalPath});
         return self.loadTexture(finalPath);
     }
 
-    pub fn loadTexture(self: *Self, path: [:0]const u8) bool {
+    pub fn loadTexture(self: *Self, path: [:0]const u8) !bool {
         // This can never ever be null, and if it is...the image hasn't been setup correctly.
         std.debug.assert(self.mParentWindow != null);
 
         // Load texture from file
-        const texture = c.IMG_LoadTexture(self.mParentWindow.?.getRenderer(), path.ptr);
+        const cache = cl.getCacheLoader();
+        const texture = try cache.LoadImage(self.mParentWindow.?.getRenderer(), path);
+        //const texture = c.IMG_LoadTexture(self.mParentWindow.?.getRenderer(), path.ptr);
         if (texture == null) {
             return false;
         }
 
         // Destroy the old texture if one is set.
         if (self.mTexture) |txt| {
-            c.SDL_DestroyTexture(txt);
+            // WARNING: Only do this, if the incoming texture is NOT EQUAL to the existing txt reference.
+            if (texture.? != txt) {
+                cache.DestroyImage(txt);
+                //c.SDL_DestroyTexture(txt);
+            }
         }
+
+        // Set the new one.
         self.mTexture = texture;
 
         // Get texture's width and height
@@ -82,7 +92,12 @@ pub const GoImage = struct {
         // Assign the texture
 
         if (self.mTexture) |txt| {
-            c.SDL_DestroyTexture(txt);
+            // WARNING: Only do this, if the incoming texture is NOT EQUAL to the existing txt reference.
+            if (texture.? != txt) {
+                const cache = cl.getCacheLoader();
+                cache.DestroyImage(txt);
+                //c.SDL_DestroyTexture(txt);
+            }
         }
 
         self.mTexture = texture;

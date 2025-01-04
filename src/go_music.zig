@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("cdefs.zig").c;
 const utility = @import("utility.zig");
+const cl = @import("go_cacheloader.zig");
 
 pub const GoMusic = struct {
     mSample: ?*c.Mix_Music = null,
@@ -13,9 +14,13 @@ pub const GoMusic = struct {
 
     pub fn deinit(self: *Self) void {
         if (self.mSample) |sample| {
-            c.Mix_FreeMusic(sample);
+            const cache = cl.getCacheLoader();
+            cache.DestroyMusic(sample);
+            //c.Mix_FreeMusic(sample);
             self.mSample = null;
         }
+
+        std.debug.print("music released...\n", .{});
     }
 
     pub fn setSample(self: *Self, path: []const u8) !void {
@@ -26,7 +31,9 @@ pub const GoMusic = struct {
             .{ utility.getBasePath(), path },
         );
 
-        self.mSample = c.Mix_LoadMUS(mPath.ptr);
+        const cache = cl.getCacheLoader();
+        self.mSample = try cache.LoadMusic(mPath);
+        //self.mSample = c.Mix_LoadMUS(mPath.ptr);
         if (self.mSample == null) {
             std.log.err("failed to load music sample!", .{});
         }

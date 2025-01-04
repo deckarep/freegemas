@@ -35,6 +35,14 @@ pub const BaseButton = struct {
         return Self{};
     }
 
+    pub fn deinit(self: *Self) void {
+        self.mImgBackground.deinit();
+        self.mImgCaption.deinit();
+        if (self.mHasIcon) {
+            self.mImgIcon.?.deinit();
+        }
+    }
+
     pub fn set(
         self: *Self,
         pw: *goWin.GoWindow,

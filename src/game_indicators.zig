@@ -57,6 +57,25 @@ pub const GameIndicators = struct {
         return Self{};
     }
 
+    pub fn deinit(self: *Self) void {
+        self.sfxSong.deinit();
+
+        // deinit all images.
+        self.mAvatarPortrait.deinit();
+        self.mAvatarFaceAnim.deinit();
+        self.mImgTimeBackground.deinit();
+        self.mImgScoreBackground.deinit();
+        self.mImgTime.deinit();
+        self.mImgTimeHeader.deinit();
+        self.mImgScore.deinit();
+        self.mImgScoreHeader.deinit();
+
+        // deinit all buttons
+        self.mHintButton.deinit();
+        self.mResetButton.deinit();
+        self.mExitButton.deinit();
+    }
+
     pub fn setGame(self: *Self, g: *goWin.GoWindow, stateGame: *sg.StateGame) void {
         self.mGame = g;
         self.mStateGame = stateGame;
@@ -115,7 +134,7 @@ pub const GameIndicators = struct {
         self.options.loadResources();
 
         if (self.options.getMusicEnabled()) {
-            try self.sfxSong.setSample("media/Isle of the Chill (remix).mp3");
+            try self.sfxSong.setSample(glConsts.Characters[glConsts.getCurrentChar()].BackgroundMusic);
             self.sfxSong.play(1);
         }
     }

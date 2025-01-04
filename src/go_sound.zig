@@ -1,5 +1,6 @@
 const std = @import("std");
 const utility = @import("utility.zig");
+const cl = @import("go_cacheloader.zig");
 const c = @import("cdefs.zig").c;
 
 pub const GoSound = struct {
@@ -12,6 +13,10 @@ pub const GoSound = struct {
         return Self{};
     }
 
+    pub fn deinit(self: *Self) void {
+        self.unload();
+    }
+
     pub fn setSample(self: *Self, path: []const u8) !void {
         var buf: [512]u8 = undefined;
 
@@ -21,8 +26,8 @@ pub const GoSound = struct {
             .{ utility.getBasePath(), path },
         );
 
-        std.debug.print("wav => {s}\n", .{mPath});
-        self.mSample = c.Mix_LoadWAV(mPath.ptr);
+        const cache = cl.getCacheLoader();
+        self.mSample = try cache.LoadWav(mPath); //c.Mix_LoadWAV(mPath.ptr);
         if (self.mSample == null) {
             std.log.err("failed to load wav with err!", .{});
         }
@@ -34,7 +39,8 @@ pub const GoSound = struct {
 
     pub fn unload(self: *Self) void {
         if (self.mSample) |sample| {
-            c.Mix_FreeChunk(sample);
+            const cache = cl.getCacheLoader();
+            cache.DestroyWav(sample);
             self.mSample = null;
         }
     }

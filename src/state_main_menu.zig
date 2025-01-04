@@ -78,6 +78,9 @@ pub const StateMainMenu = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        self.mImgBackground.deinit();
+        self.mImgLogo.deinit();
+        self.mImgHighl.deinit();
         self.mJewelAnimation.deinit();
     }
 

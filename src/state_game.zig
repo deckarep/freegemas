@@ -47,10 +47,10 @@ pub const StateGame = struct {
     mTimeStart: f64 = undefined,
 
     /// Loading screen image
-    mImgLoadingBanner: goImg.GoImage = undefined,
+    mImgLoadingBanner: goImg.GoImage = goImg.GoImage.init(),
 
     // Background image
-    mImgBoard: goImg.GoImage = undefined,
+    mImgBoard: goImg.GoImage = goImg.GoImage.init(),
 
     /// Flag that indicates whether the user is clicking
     mMousePressed: bool = false,
@@ -66,7 +66,9 @@ pub const StateGame = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        self.mImgBoard.deinit();
         self.mGameBoard.deinit();
+        self.mGameIndicators.deinit();
     }
 
     pub fn setup(ptr: *anyopaque) anyerror!void {

@@ -110,6 +110,17 @@ pub const GameBoard = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        self.mImgParticle1.deinit();
+        self.mImgParticle2.deinit();
+        self.mImgSelector.deinit();
+        self.mImgWhite.deinit();
+        self.mImgRed.deinit();
+        self.mImgPurple.deinit();
+        self.mImgOrange.deinit();
+        self.mImgGreen.deinit();
+        self.mImgYellow.deinit();
+        self.mImgBlue.deinit();
+
         if (self.mGroupedSquares) |gs| {
             gs.deinit();
             self.mGroupedSquares = null;
@@ -340,6 +351,12 @@ pub const GameBoard = struct {
 
                     // Create the floating scores
                     try self.createFloatingScores();
+
+                    // TODO: Juice.
+                    // 1. Make sure score crescendo builds using multiplier, currently it's the same sound effect
+                    // 2. Need to layer on some type of powerful cascade popping/cracking sound as well
+                    // 3. Show text reinforcing to the user the cascades: like good, great, excellent!
+                    // 4. Reward with special gems possibly.
 
                     // Start shake
                     self.mGame.startScreenShake(0.8, 3.0 * @as(f32, @floatFromInt(self.mMultiplier)));

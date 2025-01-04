@@ -39,6 +39,7 @@ pub const Particles = struct {
 pub const Avatar = struct {
     Name: []const u8,
     BackgroundImgPath: []const u8,
+    BackgroundMusic: []const u8,
     PortraitImgPath: []const u8,
     FaceAnimImgPath: []const u8,
     PortraitXY: c.SDL_Point,
@@ -61,6 +62,7 @@ pub const Characters = [_]Avatar{
     .{
         .Name = "Lampseller",
         .BackgroundImgPath = "media/board_kq6.png",
+        .BackgroundMusic = "media/Isle of the Chill (remix).mp3",
         .PortraitImgPath = "media/LampSellerPortrait.png",
         .PortraitXY = c.SDL_Point{ .x = 95, .y = 449 },
         .FaceAnimImgPath = "media/LampSellerFaceAnimation.png",
@@ -75,6 +77,7 @@ pub const Characters = [_]Avatar{
     .{
         .Name = "Bookowner",
         .BackgroundImgPath = "media/bookownerBoard.png",
+        .BackgroundMusic = "media/themes/kq6/audio/music_village_og.mp3",
         .PortraitImgPath = "media/BookownerPortrait.png",
         .PortraitXY = c.SDL_Point{ .x = 95, .y = 449 },
         .FaceAnimImgPath = "media/BookownerFaceAnimation.png",
@@ -89,6 +92,7 @@ pub const Characters = [_]Avatar{
     .{
         .Name = "Pawnowner",
         .BackgroundImgPath = "media/pawnownerBoard.png",
+        .BackgroundMusic = "media/themes/kq6/audio/music_village_og.mp3",
         .PortraitImgPath = "media/BookownerPortrait.png",
         .PortraitXY = c.SDL_Point{ .x = 95, .y = 449 },
         .FaceAnimImgPath = "media/BookownerFaceAnimation.png",
