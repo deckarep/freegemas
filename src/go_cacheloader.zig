@@ -174,6 +174,7 @@ pub const CacheLoader = struct {
 
         if (whichKey == null) {
             // Nothing to do for now...
+            std.log.warn("Attempt to destroy an image that was not found. Doing nothing.", .{});
             return;
         }
 

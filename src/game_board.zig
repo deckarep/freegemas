@@ -496,8 +496,8 @@ pub const GameBoard = struct {
         // On to the gem drawing procedure. Let's have a pointer to the image of each gem
         var img: ?*goImg.GoImage = null;
         // Top left position of the board
-        const posX = 241;
-        const posY = 41;
+        const posX = glConsts.Board.XOffset;
+        const posY = glConsts.Board.YOffset;
 
         // TODO: this should be a universal const
         const GRID_SIZE = 8;
@@ -526,8 +526,10 @@ pub const GameBoard = struct {
                 }
 
                 // WARN: hardcoded bullshit.
-                var imgX: i32 = posX + @as(i32, @intCast(i)) * 65;
-                var imgY: i32 = posY + @as(i32, @intCast(j)) * 65;
+                const imgScaleFactorX: f64 = 1.0;
+                const imgScaleFactorY: f64 = 1.0;
+                var imgX: i32 = posX + @as(i32, @intCast(i)) * glConsts.Board.GemWH;
+                var imgY: i32 = posY + @as(i32, @intCast(j)) * glConsts.Board.GemWH;
                 var imgAlpha: u8 = 255;
                 var imgBlendMode: c.SDL_BlendMode = c.SDL_BLENDMODE_BLEND;
 
@@ -535,8 +537,8 @@ pub const GameBoard = struct {
                 if (self.mState == .eBoardAppearing) {
                     imgY = @intFromFloat(easings.easeInQuad( //easeOutQuad(
                         @floatFromInt(self.mAnimationCurrentStep),
-                        @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
-                        @floatFromInt(self.mBoard.squares[i][j].destY * 65),
+                        @floatFromInt(posY + self.mBoard.squares[i][j].origY * glConsts.Board.GemWH),
+                        @floatFromInt(self.mBoard.squares[i][j].destY * glConsts.Board.GemWH),
                         @floatFromInt(self.mAnimationLongTotalSteps),
                     ));
                 }
@@ -551,36 +553,38 @@ pub const GameBoard = struct {
                     const secondX: i32 = @intCast(self.mSelectedSquareSecond.x.?);
                     const secondY: i32 = @intCast(self.mSelectedSquareSecond.y.?);
 
+                    const easeFunc = easings.easeInOutCubic;
+
                     // If the current gem is the first selected square
                     if (self.mSelectedSquareFirst.equals(i, j)) {
-                        imgX = @intFromFloat(easings.easeOutQuad(
+                        imgX = @intFromFloat(easeFunc(
                             @floatFromInt(self.mAnimationCurrentStep),
-                            @floatFromInt(posX + i * 65),
-                            @floatFromInt((secondX - firstX) * 65),
+                            @floatFromInt(posX + i * glConsts.Board.GemWH),
+                            @floatFromInt((secondX - firstX) * glConsts.Board.GemWH),
                             @floatFromInt(self.mAnimationShortTotalSteps),
                         ));
 
-                        imgY = @intFromFloat(easings.easeOutQuad(
+                        imgY = @intFromFloat(easeFunc(
                             @floatFromInt(self.mAnimationCurrentStep),
-                            @floatFromInt(posY + j * 65),
-                            @floatFromInt((secondY - firstY) * 65),
+                            @floatFromInt(posY + j * glConsts.Board.GemWH),
+                            @floatFromInt((secondY - firstY) * glConsts.Board.GemWH),
                             @floatFromInt(self.mAnimationShortTotalSteps),
                         ));
                     }
 
                     // If the current gem is the second selected square
                     else if (self.mSelectedSquareSecond.equals(i, j)) {
-                        imgX = @intFromFloat(easings.easeOutQuad(
+                        imgX = @intFromFloat(easeFunc(
                             @floatFromInt(self.mAnimationCurrentStep),
-                            @floatFromInt(posX + i * 65),
-                            @floatFromInt((firstX - secondX) * 65),
+                            @floatFromInt(posX + i * glConsts.Board.GemWH),
+                            @floatFromInt((firstX - secondX) * glConsts.Board.GemWH),
                             @floatFromInt(self.mAnimationShortTotalSteps),
                         ));
 
-                        imgY = @intFromFloat(easings.easeOutQuad(
+                        imgY = @intFromFloat(easeFunc(
                             @floatFromInt(self.mAnimationCurrentStep),
-                            @floatFromInt(posY + j * 65),
-                            @floatFromInt((firstY - secondY) * 65),
+                            @floatFromInt(posY + j * glConsts.Board.GemWH),
+                            @floatFromInt((firstY - secondY) * glConsts.Board.GemWH),
                             @floatFromInt(self.mAnimationShortTotalSteps),
                         ));
                     }
@@ -603,8 +607,8 @@ pub const GameBoard = struct {
                     if (self.mBoard.squares[i][j].mustFall) {
                         imgY = @intFromFloat(easings.easeInQuad( //easeOutQuad(
                             @floatFromInt(self.mAnimationCurrentStep),
-                            @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
-                            @floatFromInt(self.mBoard.squares[i][j].destY * 65),
+                            @floatFromInt(posY + self.mBoard.squares[i][j].origY * glConsts.Board.GemWH),
+                            @floatFromInt(self.mBoard.squares[i][j].destY * glConsts.Board.GemWH),
                             @floatFromInt(self.mAnimationShortTotalSteps),
                         ));
                     }
@@ -614,8 +618,8 @@ pub const GameBoard = struct {
                 else if (self.mState == .eBoardDisappearing or self.mState == .eTimeFinished) {
                     imgY = @intFromFloat(easings.easeInQuad(
                         @floatFromInt(self.mAnimationCurrentStep),
-                        @floatFromInt(posY + self.mBoard.squares[i][j].origY * 65),
-                        @floatFromInt(self.mBoard.squares[i][j].destY * 65),
+                        @floatFromInt(posY + self.mBoard.squares[i][j].origY * glConsts.Board.GemWH),
+                        @floatFromInt(self.mBoard.squares[i][j].destY * glConsts.Board.GemWH),
                         @floatFromInt(self.mAnimationLongTotalSteps),
                     ));
                 } else if (self.mState == .eShowingScoreTable) {
@@ -627,8 +631,8 @@ pub const GameBoard = struct {
                     imgX,
                     imgY,
                     3,
-                    1,
-                    1,
+                    imgScaleFactorX,
+                    imgScaleFactorY,
                     0,
                     imgAlpha,
                     c.SDL_Color{
