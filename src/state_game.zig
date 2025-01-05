@@ -263,6 +263,9 @@ pub const StateGame = struct {
 
         try self.mGameIndicators.loadResources();
         try self.mGameBoard.loadResources();
+
+        // Load board avatar sounds (per board)
+        try self.mGame.getGameSounds().loadAvatarSounds();
     }
 
     pub fn resetGame(self: *Self) !void {

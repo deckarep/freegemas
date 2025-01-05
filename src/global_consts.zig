@@ -1,4 +1,6 @@
+const utility = @import("utility.zig");
 const c = @import("cdefs.zig").c;
+
 // Application stuff
 pub const App = struct {
     pub const WINDOW_WIDTH = 800;
@@ -52,29 +54,20 @@ pub const Avatar = struct {
     EyeXY: c.SDL_Point,
     EyeWH: c.SDL_Point,
     EyeVertOffset: usize,
+
+    // Avatar audio lines
+    AudioLines: ?[]const []const u8,
 };
 
 pub const LampsellerId = 0;
-pub const BookownerId = 1;
+pub const FerrymanId = 1;
+pub const BookownerId = 2;
+pub const PawnownerId = 3;
 
 // TODO: use the KQ6 point score sound effect for gem matching! sound.
 pub const Characters = [_]Avatar{
     .{
-        .Name = "Lampseller",
-        .BackgroundImgPath = "media/board_kq6.png",
-        .BackgroundMusic = "media/Isle of the Chill (remix).mp3",
-        .PortraitImgPath = "media/LampSellerPortrait.png",
-        .PortraitXY = c.SDL_Point{ .x = 95, .y = 449 },
-        .FaceAnimImgPath = "media/LampSellerFaceAnimation.png",
-        .MouthFrameCnt = 10,
-        .MouthXY = c.SDL_Point{ .x = 62, .y = 87 },
-        .MouthWH = c.SDL_Point{ .x = 32, .y = 44 },
-        .EyeFrameCnt = 3,
-        .EyeXY = c.SDL_Point{ .x = 62, .y = 18 },
-        .EyeWH = c.SDL_Point{ .x = 36, .y = 14 },
-        .EyeVertOffset = 46,
-    },
-    .{
+        //@0780205.071, @0780502.0a2
         .Name = "Ferryman",
         .BackgroundImgPath = "media/ferrymanBoard.png",
         .BackgroundMusic = "media/themes/kq6/audio/music_ferrymen_og.mp3",
@@ -88,8 +81,51 @@ pub const Characters = [_]Avatar{
         .EyeXY = c.SDL_Point{ .x = 52, .y = 30 },
         .EyeWH = c.SDL_Point{ .x = 34, .y = 4 },
         .EyeVertOffset = 24,
+        .AudioLines = &.{
+            "media/themes/kq6/avatars/ferryman/Audio260-1-0-6-1.wav",
+            //"media/themes/kq6/avatars/ferryman/Audio260-10-1-0-1.wav", // Narrator audio when lvl loads maybe.
+            "media/themes/kq6/avatars/ferryman/Audio260-2-5-18-1.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-0-0-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-2-10-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-2-10-4.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-2-17-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-2-9-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-40-0-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-70-15-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-70-16-2.wav",
+        },
     },
     .{
+        .Name = "Lampseller",
+        .BackgroundImgPath = "media/board_kq6.png",
+        //.BackgroundMusic = "media/Isle of the Chill (remix).mp3",
+        .BackgroundMusic = "media/themes/kq6/audio/music_village_og.mp3",
+        .PortraitImgPath = "media/LampSellerPortrait.png",
+        .PortraitXY = c.SDL_Point{ .x = 95, .y = 449 },
+        .FaceAnimImgPath = "media/LampSellerFaceAnimation.png",
+        .MouthFrameCnt = 10,
+        .MouthXY = c.SDL_Point{ .x = 62, .y = 87 },
+        .MouthWH = c.SDL_Point{ .x = 32, .y = 44 },
+        .EyeFrameCnt = 3,
+        .EyeXY = c.SDL_Point{ .x = 62, .y = 18 },
+        .EyeWH = c.SDL_Point{ .x = 36, .y = 14 },
+        .EyeVertOffset = 46,
+        .AudioLines = &.{
+            "media/themes/kq6/avatars/lampseller/Audio240-34-5-0-1.wav",
+            "media/themes/kq6/avatars/lampseller/Audio240-34-5-0-2.wav",
+            "media/themes/kq6/avatars/lampseller/Audio240-34-5-0-4.wav",
+            "media/themes/kq6/avatars/lampseller/Audio240-39-0-0-2.wav",
+            "media/themes/kq6/avatars/lampseller/Audio240-39-0-0-3.wav",
+            "media/themes/kq6/avatars/lampseller/Audio240-4-0-0-2.wav",
+            "media/themes/kq6/avatars/lampseller/Audio240-4-2-22-2.wav",
+            "media/themes/kq6/avatars/lampseller/Audio240-4-2-22-4.wav",
+            "media/themes/kq6/avatars/lampseller/Audio240-4-2-23-2.wav",
+            "media/themes/kq6/avatars/lampseller/Audio240-4-43-22-2.wav",
+            "media/themes/kq6/avatars/lampseller/Audio240-4-43-23-2.wav",
+        },
+    },
+    .{
+        //@07i0i0r.003
         .Name = "Bookowner",
         .BackgroundImgPath = "media/bookownerBoard.png",
         .BackgroundMusic = "media/themes/kq6/audio/music_village_og.mp3",
@@ -103,8 +139,11 @@ pub const Characters = [_]Avatar{
         .EyeXY = c.SDL_Point{ .x = 56, .y = 38 },
         .EyeWH = c.SDL_Point{ .x = 32, .y = 4 },
         .EyeVertOffset = 24,
+        .AudioLines = null,
     },
     .{
+        // Pawnshop counter displays items of interest - 07s0z01.001
+        // Sync36 - @07s0402.181 (around here)
         .Name = "Pawnowner",
         .BackgroundImgPath = "media/pawnownerBoard.png",
         .BackgroundMusic = "media/themes/kq6/audio/music_village_og.mp3",
@@ -118,11 +157,13 @@ pub const Characters = [_]Avatar{
         .EyeXY = c.SDL_Point{ .x = 56, .y = 38 },
         .EyeWH = c.SDL_Point{ .x = 32, .y = 4 },
         .EyeVertOffset = 24,
+        .AudioLines = null,
     },
 };
 
 /// Private, global current character.
 var SelectedCharId: usize = LampsellerId;
+var CurrentAvatarSound: usize = 0;
 
 /// Public global function which returns the current character id.
 pub fn getCurrentChar() usize {
@@ -136,5 +177,34 @@ pub fn selectNextChar() void {
         SelectedCharId += 1;
     } else {
         SelectedCharId = LampsellerId;
+    }
+}
+
+pub fn getCurrentAvatarSoundIdx() usize {
+    return CurrentAvatarSound;
+}
+
+pub fn getCurrentAvatarLineCount() !usize {
+    const avatar = &Characters[getCurrentChar()];
+
+    if (avatar.AudioLines) |lines| {
+        // 1. Side effect to set a random initial sound.
+        // NOTE: this should only happen once because we expect this to be queried once per lvl.
+        CurrentAvatarSound = @intCast(try utility.getRandomInt(0, @as(i32, @intCast(lines.len)) - 1));
+
+        // 2. Now get the count.
+        return lines.len;
+    }
+    return 0;
+}
+
+pub fn selectNextAvatarSound() void {
+    const avatar = &Characters[getCurrentChar()];
+    if (avatar.AudioLines) |lines| {
+        if (CurrentAvatarSound < (lines.len - 1)) {
+            CurrentAvatarSound += 1;
+        } else {
+            CurrentAvatarSound = 0;
+        }
     }
 }

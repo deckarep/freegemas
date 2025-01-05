@@ -365,8 +365,11 @@ pub const GameBoard = struct {
                     self.playMatchSound();
 
                     // Avatar sound hack when a match was played.
-                    if (try utility.getRandomFloat(0, 0.75) > 0 and !self.mGame.getGameSounds().isPlayOldLampsBusy()) {
-                        self.mGame.getGameSounds().playOldLamps();
+                    if (try utility.getRandomFloat(0, 0.75) > 0 and !self.mGame.getGameSounds().isAvatarPlayingSound()) {
+                        std.debug.print("playAvatarSound()...\n", .{});
+                        self.mGame.getGameSounds().playAvatarSound();
+                    } else {
+                        std.debug.print("Avatar stays silent...\n", .{});
                     }
 
                     // Go back to the gems-fading mState

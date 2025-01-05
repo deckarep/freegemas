@@ -136,6 +136,13 @@ pub const GameIndicators = struct {
         if (self.options.getMusicEnabled()) {
             try self.sfxSong.setSample(glConsts.Characters[glConsts.getCurrentChar()].BackgroundMusic);
             self.sfxSong.play(1);
+
+            const avatar = &glConsts.Characters[glConsts.getCurrentChar()];
+            if (avatar.AudioLines) |lines| {
+                std.debug.print("Avatar has {d} audio lines\n", .{lines.len});
+            } else {
+                std.debug.print("Avatar has NO audio lines setup!\n", .{});
+            }
         }
     }
 
@@ -286,7 +293,7 @@ pub const GameIndicators = struct {
         );
 
         // 2. MOUTH: Next draw mouth cycle only when character is talking, next layer.
-        if (self.mGame.getGameSounds().isPlayOldLampsBusy()) {
+        if (self.mGame.getGameSounds().isAvatarPlayingSound()) {
             const tickCount = 4;
 
             if ((self.mAvatarTicks % tickCount) == 0) {

@@ -50,7 +50,7 @@ pub const GoWindow = struct {
     mRenderer: ?*c.SDL_Renderer = null,
 
     /// Sound controller
-    mGameSounds: gs.GameSounds = gs.GameSounds.init(),
+    mGameSounds: gs.GameSounds = undefined,
 
     /// Rendering queue
     mDrawingQueue: DrawingQueue,
@@ -102,6 +102,7 @@ pub const GoWindow = struct {
             .mLastTicks = c.SDL_GetTicks(),
             .mUpdateInterval = updateInterval,
             .mOptions = optsMan.OptionsManager.init(),
+            .mGameSounds = gs.GameSounds.init(allocator),
             .mDrawingQueue = try DrawingQueue.init(allocator),
         };
 
