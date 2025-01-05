@@ -33,6 +33,7 @@ pub const GameIndicators = struct {
 
     mAvatarPortrait: goImg.GoImage = goImg.GoImage.init(),
     mAvatarFaceAnim: goImg.GoImage = goImg.GoImage.init(),
+    mAvatarEyeAnim: goImg.GoImage = goImg.GoImage.init(),
 
     mImgTimeBackground: goImg.GoImage = goImg.GoImage.init(),
     mImgScoreBackground: goImg.GoImage = goImg.GoImage.init(),
@@ -63,6 +64,7 @@ pub const GameIndicators = struct {
         // deinit all images.
         self.mAvatarPortrait.deinit();
         self.mAvatarFaceAnim.deinit();
+        self.mAvatarEyeAnim.deinit();
         self.mImgTimeBackground.deinit();
         self.mImgScoreBackground.deinit();
         self.mImgTime.deinit();
@@ -112,10 +114,13 @@ pub const GameIndicators = struct {
         self.mImgTimeHeader = tempHeaderFont.renderTextWithShadow("time left", headerColor, 1, 1, headerShadow);
 
         // Avatar hack.
-        const portraitPng = Chars[glConsts.getCurrentChar()].PortraitImgPath;
+        const avatar = &Chars[glConsts.getCurrentChar()];
+        const portraitPng = avatar.PortraitImgPath;
         _ = try self.mAvatarPortrait.setWindowAndPath(self.mGame, portraitPng);
-        const faceAnimPng = Chars[glConsts.getCurrentChar()].FaceAnimImgPath;
+        const faceAnimPng = avatar.FaceAnimImgPath;
         _ = try self.mAvatarFaceAnim.setWindowAndPath(self.mGame, faceAnimPng);
+        const eyeAnimPng = avatar.EyeAnimImgPath;
+        _ = try self.mAvatarEyeAnim.setWindowAndPath(self.mGame, eyeAnimPng);
 
         std.debug.print("loadResources => {s} {s}\n", .{ portraitPng, faceAnimPng });
 
@@ -137,7 +142,6 @@ pub const GameIndicators = struct {
             try self.sfxSong.setSample(glConsts.Characters[glConsts.getCurrentChar()].BackgroundMusic);
             self.sfxSong.play(1);
 
-            const avatar = &glConsts.Characters[glConsts.getCurrentChar()];
             if (avatar.AudioLines) |lines| {
                 std.debug.print("Avatar has {d} audio lines\n", .{lines.len});
             } else {
@@ -259,12 +263,13 @@ pub const GameIndicators = struct {
             &avatar.PortraitXY,
             // Face anim below
             &self.mAvatarFaceAnim,
+            &self.mAvatarEyeAnim,
             &avatar.MouthXY,
             &avatar.EyeXY,
             &avatar.MouthWH,
             avatar.MouthFrameCnt,
             avatar.EyeFrameCnt,
-            avatar.EyeVertOffset,
+            //avatar.EyeVertOffset,
             &avatar.EyeWH,
         );
     }
@@ -275,12 +280,13 @@ pub const GameIndicators = struct {
         portStatic: *goImg.GoImage,
         portStaticPt: *const c.SDL_Point,
         faceAnim: *goImg.GoImage,
+        eyeAnim: *goImg.GoImage,
         mouthPt: *const c.SDL_Point,
         eyePt: *const c.SDL_Point,
         mouthWH: *const c.SDL_Point,
         totalMouthOffsets: usize,
         totalEyeOffsets: usize,
-        eyesVertOffset: usize,
+        //eyesVertOffset: usize,
         eyeWH: *const c.SDL_Point,
     ) !void {
         defer self.mAvatarTicks += 1;
@@ -304,9 +310,9 @@ pub const GameIndicators = struct {
                 self.mAvatarMouthOffset = 0;
             }
 
+            // Hack, to scissor the mouth animation to the cell size.
             faceAnim.mWidth = mouthWH.x;
             faceAnim.mHeight = mouthWH.y;
-
             _ = try faceAnim.drawEx2(
                 (portStaticPt.x + mouthPt.x),
                 (portStaticPt.y + mouthPt.y),
@@ -327,9 +333,6 @@ pub const GameIndicators = struct {
         }
 
         // 3. EYES: Always draw blinking eyes, top layer no matter what.
-        faceAnim.mWidth = eyeWH.x;
-        faceAnim.mHeight = eyeWH.y;
-
         if (try utility.getRandomFloat(0, 1) > 0.98 and self.mAvatarEyesAllowedFrames == 0) {
             self.mAvatarEyesAllowedFrames = 4;
         }
@@ -347,9 +350,12 @@ pub const GameIndicators = struct {
             self.mAvatarEyesAllowedFrames -= 1;
         }
 
-        _ = try faceAnim.drawEx2(
+        // Hack, to scissor the eye animation to the cell size.
+        eyeAnim.mWidth = eyeWH.x;
+        eyeAnim.mHeight = eyeWH.y;
+        _ = try eyeAnim.drawEx2(
             portStaticPt.x + eyePt.x,
-            portStaticPt.y + eyePt.y + @as(i32, @intCast(eyesVertOffset)),
+            portStaticPt.y + eyePt.y,
             38,
             1,
             1,
@@ -359,9 +365,9 @@ pub const GameIndicators = struct {
             c.SDL_BLENDMODE_BLEND,
             c.SDL_Rect{
                 .x = @as(i32, @intCast(self.mAvatarEyesOffset)) * (eyeWH.x + 2),
-                .y = @intCast(eyesVertOffset),
-                .w = @intCast(eyeWH.x),
-                .h = @intCast(eyeWH.y),
+                .y = 0,
+                .w = eyeWH.x,
+                .h = eyeWH.y,
             },
         );
     }

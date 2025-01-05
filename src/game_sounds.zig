@@ -36,8 +36,6 @@ pub const GameSounds = struct {
         self.mSfxMatch3.deinit();
         self.mSfxSelect.deinit();
         self.mSfxFall.deinit();
-
-        //self.mSfxOldLamps.deinit();
     }
 
     pub fn loadResources(self: *Self) !void {
@@ -49,9 +47,6 @@ pub const GameSounds = struct {
             try self.mSfxMatch3.setSample(glConsts.Sfx.Match1);
             try self.mSfxSelect.setSample("media/select.ogg");
             try self.mSfxFall.setSample("media/fall.ogg");
-
-            // try self.mSfxOldLamps.setSample("media/OldLamps.mp3");
-            // self.mSfxOldLamps.setChannel(3); // special channel.
 
             self.soundsLoaded = true;
         } else if (!self.options.getSoundEnabled() and self.soundsLoaded) {
@@ -119,18 +114,16 @@ pub const GameSounds = struct {
     }
 
     pub fn playAvatarSound(self: Self) void {
-        //self.mSfxOldLamps.play(1.25);
         const avatar = &glConsts.Characters[glConsts.getCurrentChar()];
         if (avatar.AudioLines) |_| {
             if (self.mSfxAvatarSounds) |snds| {
-                snds[glConsts.getCurrentAvatarSoundIdx()].play(1.50);
+                snds[glConsts.getCurrentAvatarSoundIdx()].play(2.0);
                 glConsts.selectNextAvatarSound();
             }
         }
     }
 
     pub fn isAvatarPlayingSound(self: Self) bool {
-        //return self.mSfxOldLamps.isPlaying();
         const avatar = &glConsts.Characters[glConsts.getCurrentChar()];
         if (avatar.AudioLines) |_| {
             if (self.mSfxAvatarSounds) |snds| {

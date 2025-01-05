@@ -69,6 +69,8 @@ pub const CacheLoader = struct {
             }
         }
 
+        // NOTE: This can occur if you attempt to load the same asset multiple times.
+        // Any subsequent destroy calls will be a NOP as expected.
         if (whichKey == null) {
             // Nothing to do for now.
             return;
@@ -122,8 +124,13 @@ pub const CacheLoader = struct {
             }
         }
 
-        // If this assertion fails, an attempt was made to free a cache unknown pointer.
-        std.debug.assert(whichKey != null);
+        if (whichKey == null) {
+            // NOTE: This can occur if you attempt to load the same asset multiple times.
+            // Any subsequent destroy calls will be a NOP as expected.
+
+            // Nothing to do.
+            return;
+        }
 
         // 1. Destroy the sample.
         c.Mix_FreeMusic(sample);
@@ -174,7 +181,8 @@ pub const CacheLoader = struct {
 
         if (whichKey == null) {
             // Nothing to do for now...
-            std.log.warn("Attempt to destroy an image that was not found. Doing nothing.", .{});
+            // NOTE: This can occur if you attempt to load the same asset multiple times.
+            // Any subsequent destroy calls will be a NOP as expected.
             return;
         }
 
