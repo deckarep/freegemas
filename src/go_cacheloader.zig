@@ -16,6 +16,12 @@ pub fn getCacheLoader() *CacheLoader {
     return &cacheLoaderInstance;
 }
 
+/// The CacheLoader should eventually become the gateway to ALL SDL asset loading no matter what.
+/// This will ensure that repeated loads of the same resource are just loaded once and destroyed
+/// once. The CacheLoader additionally will help with catching memory leaks because if the
+/// game shutsdown and items are still in the cache, this means not everything has been .deinited
+/// as it should!
+/// TODO: Fonts but a unique font should be both the (filepath, size) of the font requested.
 pub const CacheLoader = struct {
     gpa: std.mem.Allocator,
     cache: std.StringHashMap(*anyopaque),

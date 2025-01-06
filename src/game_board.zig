@@ -77,12 +77,6 @@ pub const GameBoard = struct {
     /// Animation current step
     mAnimationCurrentStep: i32 = 0,
 
-    /// Long animation total steps
-    mAnimationLongTotalSteps: i32 = 50,
-
-    /// Short animation total steps
-    mAnimationShortTotalSteps: i32 = 17,
-
     /// Current score multiplier
     mMultiplier: i32 = 1,
 
@@ -99,6 +93,10 @@ pub const GameBoard = struct {
     mSelectorX: i32 = 3,
     mSelectorY: i32 = 3,
 
+    /// Long animation total steps
+    const mAnimationLongTotalSteps = 50;
+    /// Short animation total steps
+    const mAnimationShortTotalSteps = 17;
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) Self {
@@ -241,7 +239,7 @@ pub const GameBoard = struct {
             self.mAnimationCurrentStep += 1;
 
             // If the Animation.has finished, switch to steady state
-            if (self.mAnimationCurrentStep == self.mAnimationLongTotalSteps) {
+            if (self.mAnimationCurrentStep == mAnimationLongTotalSteps) {
                 self.mState = .eSteady;
             }
         }
@@ -252,7 +250,7 @@ pub const GameBoard = struct {
             self.mAnimationCurrentStep += 1;
 
             // If the Animation.has finished, matching gems should disappear
-            if (self.mAnimationCurrentStep == self.mAnimationShortTotalSteps) {
+            if (self.mAnimationCurrentStep == mAnimationShortTotalSteps) {
                 // Winning games should disappear
                 self.mState = .eGemDisappearing;
 
@@ -284,7 +282,7 @@ pub const GameBoard = struct {
             self.mAnimationCurrentStep += 1;
 
             // If the Animation.has finished
-            if (self.mAnimationCurrentStep == self.mAnimationShortTotalSteps) {
+            if (self.mAnimationCurrentStep == mAnimationShortTotalSteps) {
                 // Empty spaces should be filled with new gems
                 self.mState = .eBoardFilling;
 
@@ -318,7 +316,7 @@ pub const GameBoard = struct {
             self.mAnimationCurrentStep += 1;
 
             // If the Animation.has finished
-            if (self.mAnimationCurrentStep == self.mAnimationShortTotalSteps) {
+            if (self.mAnimationCurrentStep == mAnimationShortTotalSteps) {
                 // Play the fall sound
                 self.mGame.getGameSounds().playSoundFall();
 
@@ -405,7 +403,7 @@ pub const GameBoard = struct {
             self.mAnimationCurrentStep += 1;
 
             // If the Animation.has finished
-            if (self.mAnimationCurrentStep == self.mAnimationLongTotalSteps) {
+            if (self.mAnimationCurrentStep == mAnimationLongTotalSteps) {
                 // Reset animation counter
                 self.mAnimationCurrentStep = 0;
 
@@ -423,7 +421,7 @@ pub const GameBoard = struct {
             self.mAnimationCurrentStep += 1;
 
             // If the Animation.has finished
-            if (self.mAnimationCurrentStep == self.mAnimationLongTotalSteps) {
+            if (self.mAnimationCurrentStep == mAnimationLongTotalSteps) {
                 // Reset animation counter
                 self.mAnimationCurrentStep = 0;
 
@@ -534,16 +532,32 @@ pub const GameBoard = struct {
                 var imgX: i32 = posX + @as(i32, @intCast(i)) * glConsts.Board.GemWH;
                 var imgY: i32 = posY + @as(i32, @intCast(j)) * glConsts.Board.GemWH;
                 var imgAlpha: u8 = 255;
+                var imgAngle: f32 = 0;
                 var imgBlendMode: c.SDL_BlendMode = c.SDL_BLENDMODE_BLEND;
 
                 // When the board is first appearing, all the gems are falling
                 if (self.mState == .eBoardAppearing) {
-                    imgY = @intFromFloat(easings.easeInQuad( //easeOutQuad(
-                        @floatFromInt(self.mAnimationCurrentStep),
+                    // NOTE: Tweaked the fresh board appear animation by causing each column
+                    // to appear over time. A shift of mAnimationLongTotalSteps / GridSize looks good and
+                    // notice that both t and d have a substracted expression based on i (which is really
+                    // the x horizontal index) making each column appear from left to right. It's more
+                    // interesting this way. Thanks for the recommendation @doomlazer.
+                    const shiftSteps = mAnimationLongTotalSteps / glConsts.Board.GridSize;
+                    const shiftExp = @as(i32, @intCast(i * shiftSteps));
+
+                    imgY = @intFromFloat(easings.easeOutQuart(
+                        @floatFromInt(self.mAnimationCurrentStep - shiftExp),
                         @floatFromInt(posY + self.mBoard.squares[i][j].origY * glConsts.Board.GemWH),
                         @floatFromInt(self.mBoard.squares[i][j].destY * glConsts.Board.GemWH),
-                        @floatFromInt(self.mAnimationLongTotalSteps),
+                        @floatFromInt(mAnimationLongTotalSteps - shiftExp),
                     ));
+
+                    imgAngle = easings.easeInOutQuad(
+                        @floatFromInt(self.mAnimationCurrentStep),
+                        0,
+                        360,
+                        @floatFromInt(mAnimationLongTotalSteps),
+                    );
                 }
 
                 // When two correct gems have been selected, they switch positions
@@ -564,14 +578,14 @@ pub const GameBoard = struct {
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posX + i * glConsts.Board.GemWH),
                             @floatFromInt((secondX - firstX) * glConsts.Board.GemWH),
-                            @floatFromInt(self.mAnimationShortTotalSteps),
+                            @floatFromInt(mAnimationShortTotalSteps),
                         ));
 
                         imgY = @intFromFloat(easeFunc(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posY + j * glConsts.Board.GemWH),
                             @floatFromInt((secondY - firstY) * glConsts.Board.GemWH),
-                            @floatFromInt(self.mAnimationShortTotalSteps),
+                            @floatFromInt(mAnimationShortTotalSteps),
                         ));
                     }
 
@@ -581,14 +595,14 @@ pub const GameBoard = struct {
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posX + i * glConsts.Board.GemWH),
                             @floatFromInt((firstX - secondX) * glConsts.Board.GemWH),
-                            @floatFromInt(self.mAnimationShortTotalSteps),
+                            @floatFromInt(mAnimationShortTotalSteps),
                         ));
 
                         imgY = @intFromFloat(easeFunc(
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posY + j * glConsts.Board.GemWH),
                             @floatFromInt((firstY - secondY) * glConsts.Board.GemWH),
-                            @floatFromInt(self.mAnimationShortTotalSteps),
+                            @floatFromInt(mAnimationShortTotalSteps),
                         ));
                     }
                 }
@@ -598,7 +612,7 @@ pub const GameBoard = struct {
                     if (self.mGroupedSquares) |gs| {
                         if (gs.matched(co.Coord{ .x = i, .y = j })) {
                             const cs: f32 = @floatFromInt(self.mAnimationCurrentStep);
-                            const ts: f32 = @floatFromInt(self.mAnimationShortTotalSteps);
+                            const ts: f32 = @floatFromInt(mAnimationShortTotalSteps);
                             imgAlpha = @intFromFloat(255.0 * (1.0 - cs / ts));
                             imgBlendMode = c.SDL_BLENDMODE_ADD;
                         }
@@ -612,7 +626,7 @@ pub const GameBoard = struct {
                             @floatFromInt(self.mAnimationCurrentStep),
                             @floatFromInt(posY + self.mBoard.squares[i][j].origY * glConsts.Board.GemWH),
                             @floatFromInt(self.mBoard.squares[i][j].destY * glConsts.Board.GemWH),
-                            @floatFromInt(self.mAnimationShortTotalSteps),
+                            @floatFromInt(mAnimationShortTotalSteps),
                         ));
                     }
                 }
@@ -623,7 +637,7 @@ pub const GameBoard = struct {
                         @floatFromInt(self.mAnimationCurrentStep),
                         @floatFromInt(posY + self.mBoard.squares[i][j].origY * glConsts.Board.GemWH),
                         @floatFromInt(self.mBoard.squares[i][j].destY * glConsts.Board.GemWH),
-                        @floatFromInt(self.mAnimationLongTotalSteps),
+                        @floatFromInt(mAnimationLongTotalSteps),
                     ));
                 } else if (self.mState == .eShowingScoreTable) {
                     continue;
@@ -636,7 +650,7 @@ pub const GameBoard = struct {
                     3,
                     imgScaleFactorX,
                     imgScaleFactorY,
-                    0,
+                    imgAngle,
                     imgAlpha,
                     c.SDL_Color{
                         .r = 255,
