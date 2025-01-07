@@ -14,17 +14,23 @@ const c = @import("cdefs.zig").c;
 
 var drawErrors: usize = 0;
 
-// Temporarily public for troubleshooting.
-pub var howToPlay: ?StateHowToPlay = null;
-pub var gamePlayEndless: ?StateGame = null;
-pub var gamePlayTimetrial: ?StateGame = null;
-pub var mainMenu: ?StateMainMenu = null;
+/// GameStates is a container that holds the concrete pointers
+/// NOT THE INTERFACES, but the original pointer objects
+pub const GameStates = struct {
+    mainMenu: ?StateMainMenu = null,
+    howToPlay: ?StateHowToPlay = null,
+    gamePlayEndless: ?StateGame = null,
+    gamePlayTimetrial: ?StateGame = null,
+};
 
 pub const GoWindow = struct {
     allocator: std.mem.Allocator,
 
     /// Running flag
     mShouldRun: bool,
+
+    /// Simple container for all game states.
+    mGameStates: GameStates = GameStates{},
 
     /// Time interval between frames, in milliseconds
     mUpdateInterval: u32 = 17,
@@ -123,21 +129,20 @@ pub const GoWindow = struct {
 
         self.mMouseCursor.deinit();
 
-        // TODO: clean up the states: state_game, state_how_to_play, state_main_menu, etc.
-        if (gamePlayEndless) |*ge| {
+        // clean up the states.
+        if (self.mGameStates.gamePlayEndless) |*ge| {
             ge.deinit();
         }
 
-        if (gamePlayTimetrial) |*gtt| {
+        if (self.mGameStates.gamePlayTimetrial) |*gtt| {
             gtt.deinit();
         }
 
-        if (howToPlay) |*htp| {
-            _ = htp;
-            //htp.deinit(); <-- TODO: add this
+        if (self.mGameStates.howToPlay) |*htp| {
+            htp.deinit();
         }
 
-        if (mainMenu) |*mm| {
+        if (self.mGameStates.mainMenu) |*mm| {
             mm.deinit();
         }
 
@@ -560,83 +565,90 @@ pub const GoWindow = struct {
         return self.mCurrentStateStr;
     }
 
-    pub fn changeState(self: *Self, newState: []const u8) !void {
-        // TODO: maybe it's better to clean things up here.
-        // This is now redundant with the code below partially.
-        // 1. Clean up...
-        if (gamePlayEndless) |*gpe| {
+    fn cleanLastState(self: *Self) void {
+        if (self.mGameStates.mainMenu) |*mm| {
             // If a prev instance existed from user going back and switching states.
             // Clean this instance up, then allow a fresh one to be created and setup.
-            gpe.deinit();
-            gamePlayEndless = null;
+            mm.deinit();
+            self.mGameStates.mainMenu = null;
+            self.mCurrentState = null;
+            self.mCurrentStateStr = "<none>";
         }
 
-        if (gamePlayTimetrial) |*gptt| {
-            // If a prev instance existed from user going back and switching states.
-            // Clean this instance up, then allow a fresh one to be created and setup.
-            gptt.deinit();
-            gamePlayTimetrial = null;
-        }
-
-        if (howToPlay) |*htp| {
+        if (self.mGameStates.howToPlay) |*htp| {
             // If a prev instance existed from user going back and switching states.
             // Clean this instance up, then allow a fresh one to be created and setup.
             htp.deinit();
-            howToPlay = null;
+            self.mGameStates.howToPlay = null;
+            self.mCurrentState = null;
+            self.mCurrentStateStr = "<none>";
         }
 
-        // 2. Now select state.
+        if (self.mGameStates.gamePlayEndless) |*gpe| {
+            // If a prev instance existed from user going back and switching states.
+            // Clean this instance up, then allow a fresh one to be created and setup.
+            gpe.deinit();
+            self.mGameStates.gamePlayEndless = null;
+            self.mCurrentState = null;
+            self.mCurrentStateStr = "<none>";
+        }
+
+        if (self.mGameStates.gamePlayTimetrial) |*gptt| {
+            // If a prev instance existed from user going back and switching states.
+            // Clean this instance up, then allow a fresh one to be created and setup.
+            gptt.deinit();
+            self.mGameStates.gamePlayTimetrial = null;
+            self.mCurrentState = null;
+            self.mCurrentStateStr = "<none>";
+        }
+    }
+
+    pub fn changeState(self: *Self, newState: []const u8) !void {
         if (std.mem.eql(u8, newState, self.mCurrentStateStr)) {
+            // newState == currentState?
+            // Do nothing, and early return!
             return;
-        } else if (std.mem.eql(u8, newState, "stateQuit")) {
+        } else if (std.mem.eql(u8, newState, "stateOptions")) {
+            std.debug.print("TODO: stateOptions...\n", .{});
+            return;
+        }
+
+        // 2. Now select a known state.
+        if (std.mem.eql(u8, newState, "stateQuit")) {
             self.close();
         } else if (std.mem.eql(u8, newState, "stateGameEndless")) {
-            // if (gamePlayEndless) |*gpe| {
-            //     // If a prev instance existed from user going back and switching states.
-            //     // Clean this instance up, then allow a fresh one to be created and setup.
-            //     gpe.deinit();
-            //     gamePlayEndless = null;
-            // }
+            self.cleanLastState();
+            self.mGameStates.gamePlayEndless = try StateGame.init(.eEndless, self, self.allocator);
 
-            gamePlayEndless = try StateGame.init(.eEndless, self, self.allocator);
-
-            const stater = gamePlayEndless.?.stater(self);
+            const stater = self.mGameStates.gamePlayEndless.?.stater(self);
             try stater.setup();
 
             self.mCurrentState = stater;
             self.mCurrentStateStr = "stateGameEndless";
         } else if (std.mem.eql(u8, newState, "stateGameTimetrial")) {
-            // if (gamePlayTimetrial) |*gptt| {
-            //     // If a prev instance existed from user going back and switching states.
-            //     // Clean this instance up, then allow a fresh one to be created and setup.
-            //     gptt.deinit();
-            //     gamePlayTimetrial = null;
-            // }
+            self.cleanLastState();
+            self.mGameStates.gamePlayTimetrial = try StateGame.init(.eTimetrial, self, self.allocator);
 
-            gamePlayTimetrial = try StateGame.init(.eTimetrial, self, self.allocator);
-
-            const stater = gamePlayTimetrial.?.stater(self);
+            const stater = self.mGameStates.gamePlayTimetrial.?.stater(self);
             try stater.setup();
 
             self.mCurrentState = stater;
             self.mCurrentStateStr = "stateGameTimetrial";
-        } else if (std.mem.eql(u8, newState, "stateOptions")) {
-            std.debug.print("TODO: stateOptions...\n", .{});
         } else if (std.mem.eql(u8, newState, "stateHowtoplay")) {
-            if (howToPlay == null) {
-                howToPlay = try StateHowToPlay.init(self);
-            }
-            const stater = howToPlay.?.stater(self);
+            self.cleanLastState();
+            self.mGameStates.howToPlay = try StateHowToPlay.init(self);
+
+            const stater = self.mGameStates.howToPlay.?.stater(self);
             // TODO: try stater.setup();
+
             self.mCurrentState = stater;
             self.mCurrentStateStr = "stateHowtoPlay";
         } else if (std.mem.eql(u8, newState, "stateMainMenu")) {
-            if (mainMenu == null) {
-                const mm = try StateMainMenu.init(self);
-                mainMenu = mm;
-            }
-            const stater = mainMenu.?.stater(self);
+            self.cleanLastState();
+            self.mGameStates.mainMenu = try StateMainMenu.init(self);
+            const stater = self.mGameStates.mainMenu.?.stater(self);
             try stater.setup();
+
             self.mCurrentState = stater;
             self.mCurrentStateStr = "stateMainMenu";
         } else {
