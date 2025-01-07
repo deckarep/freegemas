@@ -46,6 +46,58 @@ pub const CacheLoader = struct {
         self.cache.deinit();
     }
 
+    /// This function loads fonts but ensures that a uniquely cached font
+    /// is discriminated by: (path::size). So if I load fontA, 12 and fontA, 16
+    /// The cache must have two entries.
+    pub fn LoadFont(self: *Self, path: [:0]const u8, size: usize) !?*c.TTF_Font {
+        // NOTE: a font key of (path::size) is considered a unique font, so this becomes
+        // our font key.
+        var buf: [128]u8 = undefined;
+        const fontKey = try std.fmt.bufPrintZ(&buf, "{s}::{d}", .{ path, size });
+
+        if (self.cache.contains(fontKey)) {
+            std.debug.print("font: {s} already loaded yay!\n", .{fontKey});
+            return @alignCast(@ptrCast(self.cache.get(fontKey).?));
+        }
+
+        const font = c.TTF_OpenFont(path, @intCast(size));
+        if (font == null) return null;
+
+        // Take an owned copy of the key for safety, since the passed in path could
+        // be stack allocated!!!
+        const ownedKey = try self.gpa.dupe(u8, fontKey);
+        try self.cache.put(ownedKey, font.?);
+
+        return font;
+    }
+
+    pub fn DestroyFont(self: *Self, font: *c.TTF_Font) void {
+        // For now, just iterate to find the item.
+        var iter = self.cache.iterator();
+        var whichKey: ?[]const u8 = null;
+        while (iter.next()) |entry| {
+            if (@as(*anyopaque, @alignCast(@ptrCast(font))) == entry.value_ptr.*) {
+                whichKey = entry.key_ptr.*;
+            }
+        }
+
+        // NOTE: This can occur if you attempt to load the same asset multiple times.
+        // Any subsequent destroy calls will be a NOP as expected.
+        if (whichKey == null) {
+            // Nothing to do for now.
+            return;
+        }
+
+        // 1. Destroy the font.
+        c.TTF_CloseFont(font);
+
+        // 3. Delete the owned key.
+        defer self.gpa.free(whichKey.?);
+
+        // 2. Remove the entry
+        _ = self.cache.remove(whichKey.?);
+    }
+
     /// This function loads wavs.
     pub fn LoadWav(self: *Self, path: [:0]const u8) !*c.Mix_Chunk {
         if (self.cache.contains(path)) {
@@ -91,8 +143,6 @@ pub const CacheLoader = struct {
         // 2. Remove the entry
         _ = self.cache.remove(whichKey.?);
     }
-
-    // TODO: font, but we need to consider that a unique font is (path + size)
 
     /// This function loads music.
     pub fn LoadMusic(self: *Self, path: [:0]const u8) !?*c.Mix_Music {

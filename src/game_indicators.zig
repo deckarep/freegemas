@@ -61,6 +61,10 @@ pub const GameIndicators = struct {
     pub fn deinit(self: *Self) void {
         self.sfxSong.deinit();
 
+        // deinit all fonts
+        self.mFontScore.deinit();
+        self.mFontTime.deinit();
+
         // deinit all images.
         self.mAvatarPortrait.deinit();
         self.mAvatarFaceAnim.deinit();
@@ -94,6 +98,7 @@ pub const GameIndicators = struct {
 
         // Font to render some headers
         var tempHeaderFont = goFont.GoFont.init();
+        defer tempHeaderFont.deinit();
         try tempHeaderFont.setAll(self.mGame, "media/fuenteNormal.ttf", 37);
 
         const headerColor = c.SDL_Color{

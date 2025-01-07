@@ -42,6 +42,8 @@ pub const StateHowToPlay = struct {
 
         // Build the title text
         var fontTitle = goFont.GoFont.init();
+        defer fontTitle.deinit();
+
         fontTitle.setWindow(p);
         try fontTitle.setPathAndSize("media/fuenteMenu.ttf", 48);
 
@@ -55,6 +57,7 @@ pub const StateHowToPlay = struct {
 
         // Build the subtitle text
         var fontSubtitle = goFont.GoFont.init();
+        defer fontSubtitle.deinit();
         fontSubtitle.setWindow(p);
         try fontSubtitle.setPathAndSize("media/fuenteMenu.ttf", 23);
 
@@ -69,6 +72,7 @@ pub const StateHowToPlay = struct {
 
         // Build the main text
         var fontText = goFont.GoFont.init();
+        defer fontText.deinit();
         fontText.setWindow(p);
         try fontText.setPathAndSize("media/fuenteNormal.ttf", 28);
 
@@ -89,6 +93,14 @@ pub const StateHowToPlay = struct {
         );
 
         return o;
+    }
+
+    pub fn deinit(self: *Self) void {
+        // .deinit all images.
+        self.mImgBackground.deinit();
+        self.mImgTitle.deinit();
+        self.mImgSubtitle.deinit();
+        self.mImgBodyText.deinit();
     }
 
     pub fn setup(ptr: *anyopaque) anyerror!void {

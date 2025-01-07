@@ -67,6 +67,7 @@ pub const BaseButton = struct {
 
     pub fn setText(self: *Self, caption: [:0]const u8) !void {
         var textFont = goFont.GoFont.init();
+        defer textFont.deinit();
         try textFont.setAll(self.mParentWindow, "media/fuenteNormal.ttf", 27);
 
         self.mImgCaption = textFont.renderTextWithShadow(

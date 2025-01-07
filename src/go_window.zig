@@ -578,6 +578,13 @@ pub const GoWindow = struct {
             gamePlayTimetrial = null;
         }
 
+        if (howToPlay) |*htp| {
+            // If a prev instance existed from user going back and switching states.
+            // Clean this instance up, then allow a fresh one to be created and setup.
+            htp.deinit();
+            howToPlay = null;
+        }
+
         // 2. Now select state.
         if (std.mem.eql(u8, newState, self.mCurrentStateStr)) {
             return;

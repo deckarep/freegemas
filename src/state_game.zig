@@ -86,6 +86,7 @@ pub const StateGame = struct {
 
         // Load the loading screen
         var tempLoadingFont = goFont.GoFont.init();
+        defer tempLoadingFont.deinit();
         try tempLoadingFont.setAll(self.mGame, "media/fuenteMenu.ttf", 64);
 
         self.mImgLoadingBanner = tempLoadingFont.renderText(

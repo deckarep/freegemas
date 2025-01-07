@@ -2,6 +2,7 @@ const std = @import("std");
 const utility = @import("utility.zig");
 const c = @import("cdefs.zig").c;
 const goWin = @import("go_window.zig");
+const cl = @import("go_cacheloader.zig");
 const goImg = @import("go_image.zig");
 
 pub const GoFont = struct {
@@ -27,7 +28,9 @@ pub const GoFont = struct {
 
     pub fn deinit(self: *Self) void {
         if (self.mFont) |fnt| {
-            c.TTF_CloseFont(fnt);
+            //c.TTF_CloseFont(fnt);
+            const cacher = cl.getCacheLoader();
+            cacher.DestroyFont(fnt);
             self.mFont = null;
         }
     }
@@ -48,12 +51,16 @@ pub const GoFont = struct {
         var buf: [128]u8 = undefined;
         const finalPath = try std.fmt.bufPrintZ(&buf, "{s}{s}", .{ utility.getBasePath(), path });
 
+        const cacher = cl.getCacheLoader();
+
         if (self.mFont) |fnt| {
-            c.TTF_CloseFont(fnt);
+            cacher.DestroyFont(fnt);
+            //c.TTF_CloseFont(fnt);
             self.mFont = null;
         }
 
-        self.mFont = c.TTF_OpenFont(finalPath, @intCast(self.mSize));
+        self.mFont = try cacher.LoadFont(finalPath, self.mSize);
+        //self.mFont = c.TTF_OpenFont(finalPath, @intCast(self.mSize));
         if (self.mFont == null) {
             std.log.err("failed to load font with err: {s}", .{std.mem.span(c.SDL_GetError())});
         }
