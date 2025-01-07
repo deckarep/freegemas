@@ -39,63 +39,42 @@ pub const Particles = struct {
 
 // Theme / Avatars
 pub const Avatar = struct {
+    /// The character name of the avatar, not yet used in code.
     Name: []const u8,
+    /// Which background image to use for this character. Should help reinforce
+    /// the characters origin.
     BackgroundImgPath: []const u8,
+    /// Obviously, if the character has a musical theme or related music.
     BackgroundMusic: []const u8,
+    /// The actual character's portrait.
     PortraitImgPath: []const u8,
-    FaceAnimImgPath: []const u8,
-    EyeAnimImgPath: []const u8,
+    /// Portraits top/left anchor position.
     PortraitXY: c.SDL_Point,
 
+    /// The character's mouth/talking lip movements, for now played in sequence.
+    FaceAnimImgPath: []const u8,
+    /// How many cells does the character's mouth/talking lip movements have.
     MouthFrameCnt: usize,
+    /// The top/left anchor position (relative to the portrait)
     MouthXY: c.SDL_Point,
+    /// The width/height of a single mouth/lip cell.
     MouthWH: c.SDL_Point,
 
+    /// The character's eye movements, for now random.
+    EyeAnimImgPath: []const u8,
+    /// The number of frames for the characters eye cells.
     EyeFrameCnt: usize,
+    /// The top/left anchor position (relative to the portait)
     EyeXY: c.SDL_Point,
+    /// The width/height for a single eye cell.
     EyeWH: c.SDL_Point,
 
-    // Avatar audio lines
+    /// The character's audio lines, they are played in sequence but a random
+    /// line is chosen, then in sequence there after and loops back around.
     AudioLines: ?[]const []const u8,
 };
 
-pub const LampsellerId = 0;
-pub const FerrymanId = 1;
-pub const BookownerId = 2;
-pub const PawnownerId = 3;
-
-// TODO: use the KQ6 point score sound effect for gem matching! sound.
 pub const Characters = [_]Avatar{
-    .{
-        //@0780205.071, @0780502.0a2
-        .Name = "Ferryman",
-        .BackgroundImgPath = "media/ferrymanBoard.png",
-        .BackgroundMusic = "media/themes/kq6/audio/music_ferrymen_og.mp3",
-        .PortraitImgPath = "media/FerrymanPortrait.png",
-        .PortraitXY = c.SDL_Point{ .x = 95, .y = 449 },
-        .FaceAnimImgPath = "media/FerrymanFaceAnimation.png",
-        .EyeAnimImgPath = "media/FerrymanEyeAnimation.png",
-        .MouthFrameCnt = 10,
-        .MouthXY = c.SDL_Point{ .x = 58, .y = 74 },
-        .MouthWH = c.SDL_Point{ .x = 28, .y = 22 },
-        .EyeFrameCnt = 3,
-        .EyeXY = c.SDL_Point{ .x = 52, .y = 54 },
-        .EyeWH = c.SDL_Point{ .x = 34, .y = 4 },
-        //.EyeVertOffset = 24,
-        .AudioLines = &.{
-            "media/themes/kq6/avatars/ferryman/Audio260-1-0-6-1.wav",
-            //"media/themes/kq6/avatars/ferryman/Audio260-10-1-0-1.wav", // Narrator audio when lvl loads maybe.
-            "media/themes/kq6/avatars/ferryman/Audio260-2-5-18-1.wav",
-            "media/themes/kq6/avatars/ferryman/Audio260-5-0-0-2.wav",
-            "media/themes/kq6/avatars/ferryman/Audio260-5-2-10-2.wav",
-            "media/themes/kq6/avatars/ferryman/Audio260-5-2-10-4.wav",
-            "media/themes/kq6/avatars/ferryman/Audio260-5-2-17-2.wav",
-            "media/themes/kq6/avatars/ferryman/Audio260-5-2-9-2.wav",
-            "media/themes/kq6/avatars/ferryman/Audio260-5-40-0-2.wav",
-            "media/themes/kq6/avatars/ferryman/Audio260-5-70-15-2.wav",
-            "media/themes/kq6/avatars/ferryman/Audio260-5-70-16-2.wav",
-        },
-    },
     .{
         .Name = "Lampseller",
         .BackgroundImgPath = "media/board_kq6.png",
@@ -148,7 +127,6 @@ pub const Characters = [_]Avatar{
         .EyeFrameCnt = 3,
         .EyeXY = c.SDL_Point{ .x = 56, .y = 60 },
         .EyeWH = c.SDL_Point{ .x = 32, .y = 4 },
-        //.EyeVertOffset = 24,
         .AudioLines = &.{
             "media/themes/kq6/avatars/bookowner/Audio270-1-5-1-2.wav",
             "media/themes/kq6/avatars/bookowner/Audio270-1-5-1-3.wav",
@@ -179,23 +157,73 @@ pub const Characters = [_]Avatar{
         .Name = "Pawnowner",
         .BackgroundImgPath = "media/pawnownerBoard.png",
         .BackgroundMusic = "media/themes/kq6/audio/music_village_og.mp3",
-        .PortraitImgPath = "media/BookownerPortrait.png",
+        .PortraitImgPath = "media/PawnownerPortrait.png",
         .PortraitXY = c.SDL_Point{ .x = 95, .y = 449 },
-        .FaceAnimImgPath = "media/BookownerFaceAnimation.png",
+        .FaceAnimImgPath = "media/PawnownerMouthAnimation.png",
+        .EyeAnimImgPath = "media/PawnownerEyeAnimation.png",
+        .MouthFrameCnt = 10,
+        .MouthXY = c.SDL_Point{ .x = 58, .y = 72 },
+        .MouthWH = c.SDL_Point{ .x = 34, .y = 36 },
+        .EyeFrameCnt = 3,
+        .EyeXY = c.SDL_Point{ .x = 50, .y = 50 },
+        .EyeWH = c.SDL_Point{ .x = 40, .y = 4 },
+        .AudioLines = &.{
+            "media/themes/kq6/avatars/pawnowner/Audio280-11-5-39-1.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-11-5-40-1.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-37-5-16-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-37-5-39-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-12-30-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-12-31-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-13-0-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-2-61-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-2-61-4.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-2-61-5.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-2-61-7.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-40-69-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-42-0-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-63-0-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-66-26-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-66-28-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-7-0-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-70-18-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-70-18-3.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-4-70-21-2.wav",
+            "media/themes/kq6/avatars/pawnowner/Audio280-6-5-0-2.wav",
+        },
+    },
+    .{
+        //@0780205.071, @0780502.0a2
+        .Name = "Ferryman",
+        .BackgroundImgPath = "media/ferrymanBoard.png",
+        .BackgroundMusic = "media/themes/kq6/audio/music_ferrymen_og.mp3",
+        .PortraitImgPath = "media/FerrymanPortrait.png",
+        .PortraitXY = c.SDL_Point{ .x = 95, .y = 449 },
+        .FaceAnimImgPath = "media/FerrymanFaceAnimation.png",
         .EyeAnimImgPath = "media/FerrymanEyeAnimation.png",
         .MouthFrameCnt = 10,
-        .MouthXY = c.SDL_Point{ .x = 62, .y = 84 },
-        .MouthWH = c.SDL_Point{ .x = 26, .y = 22 },
+        .MouthXY = c.SDL_Point{ .x = 58, .y = 74 },
+        .MouthWH = c.SDL_Point{ .x = 28, .y = 22 },
         .EyeFrameCnt = 3,
-        .EyeXY = c.SDL_Point{ .x = 56, .y = 38 },
-        .EyeWH = c.SDL_Point{ .x = 32, .y = 4 },
-        //.EyeVertOffset = 24,
-        .AudioLines = null,
+        .EyeXY = c.SDL_Point{ .x = 52, .y = 54 },
+        .EyeWH = c.SDL_Point{ .x = 34, .y = 4 },
+        .AudioLines = &.{
+            "media/themes/kq6/avatars/ferryman/Audio260-1-0-6-1.wav",
+            //"media/themes/kq6/avatars/ferryman/Audio260-10-1-0-1.wav", // Narrator audio when lvl loads maybe.
+            "media/themes/kq6/avatars/ferryman/Audio260-2-5-18-1.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-0-0-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-2-10-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-2-10-4.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-2-17-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-2-9-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-40-0-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-70-15-2.wav",
+            "media/themes/kq6/avatars/ferryman/Audio260-5-70-16-2.wav",
+        },
     },
 };
 
 /// Private, global current character.
-var SelectedCharId: usize = LampsellerId;
+var SelectedCharId: usize = 0;
 var CurrentAvatarSound: usize = 0;
 
 /// Public global function which returns the current character id.
@@ -209,7 +237,7 @@ pub fn selectNextChar() void {
     if (SelectedCharId < (Characters.len - 1)) {
         SelectedCharId += 1;
     } else {
-        SelectedCharId = LampsellerId;
+        SelectedCharId = 0;
     }
 }
 
