@@ -566,13 +566,19 @@ pub const GoWindow = struct {
     }
 
     fn cleanLastState(self: *Self) void {
+        var deleteHappened = false;
+
+        defer if (deleteHappened) {
+            self.mCurrentState = null;
+            self.mCurrentStateStr = "<none>";
+        };
+
         if (self.mGameStates.mainMenu) |*mm| {
             // If a prev instance existed from user going back and switching states.
             // Clean this instance up, then allow a fresh one to be created and setup.
             mm.deinit();
             self.mGameStates.mainMenu = null;
-            self.mCurrentState = null;
-            self.mCurrentStateStr = "<none>";
+            deleteHappened = true;
         }
 
         if (self.mGameStates.howToPlay) |*htp| {
@@ -580,8 +586,7 @@ pub const GoWindow = struct {
             // Clean this instance up, then allow a fresh one to be created and setup.
             htp.deinit();
             self.mGameStates.howToPlay = null;
-            self.mCurrentState = null;
-            self.mCurrentStateStr = "<none>";
+            deleteHappened = true;
         }
 
         if (self.mGameStates.gamePlayEndless) |*gpe| {
@@ -589,8 +594,7 @@ pub const GoWindow = struct {
             // Clean this instance up, then allow a fresh one to be created and setup.
             gpe.deinit();
             self.mGameStates.gamePlayEndless = null;
-            self.mCurrentState = null;
-            self.mCurrentStateStr = "<none>";
+            deleteHappened = true;
         }
 
         if (self.mGameStates.gamePlayTimetrial) |*gptt| {
@@ -598,8 +602,7 @@ pub const GoWindow = struct {
             // Clean this instance up, then allow a fresh one to be created and setup.
             gptt.deinit();
             self.mGameStates.gamePlayTimetrial = null;
-            self.mCurrentState = null;
-            self.mCurrentStateStr = "<none>";
+            deleteHappened = true;
         }
     }
 
