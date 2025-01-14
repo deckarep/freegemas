@@ -66,9 +66,13 @@ pub const StateGame = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        self.mImgLoadingBanner.deinit();
         self.mImgBoard.deinit();
         self.mGameBoard.deinit();
         self.mGameIndicators.deinit();
+
+        // I think this should unload it
+        self.mGame.getGameSounds().deinit();
     }
 
     pub fn setup(ptr: *anyopaque) anyerror!void {
@@ -256,6 +260,8 @@ pub const StateGame = struct {
     }
 
     // ----------------------------------------------------------------------------
+
+    var loadAvatarSoundsCount: usize = 0;
 
     pub fn loadResources(self: *Self) !void {
         // Load the background image for the given character.

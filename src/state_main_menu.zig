@@ -78,11 +78,18 @@ pub const StateMainMenu = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.mFont.deinit();
+        // Artificial leak.
         self.mImgBackground.deinit();
         self.mImgLogo.deinit();
         self.mImgHighl.deinit();
+
         self.mJewelAnimation.deinit();
+
+        self.mFont.deinit();
+
+        for (&self.mMenuRenderedTexts) |*img| {
+            img.deinit();
+        }
     }
 
     pub fn setup(ptr: *anyopaque) anyerror!void {

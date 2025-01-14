@@ -4,6 +4,7 @@ const c = @import("cdefs.zig").c;
 const goWin = @import("go_window.zig");
 const cl = @import("go_cacheloader.zig");
 const goImg = @import("go_image.zig");
+const trkr = @import("sdl_mem_tracker.zig");
 
 pub const GoFont = struct {
     // Parent window.
@@ -28,9 +29,12 @@ pub const GoFont = struct {
 
     pub fn deinit(self: *Self) void {
         if (self.mFont) |fnt| {
-            //c.TTF_CloseFont(fnt);
             const cacher = cl.getCacheLoader();
-            cacher.DestroyFont(fnt);
+            const ok = cacher.DestroyFont(fnt);
+            if (!ok) {
+                std.log.warn("Cache didn't actually DestroyFont!!!", .{});
+                //trkr.TTF_CloseFont(fnt);
+            }
             self.mFont = null;
         }
     }
@@ -54,13 +58,15 @@ pub const GoFont = struct {
         const cacher = cl.getCacheLoader();
 
         if (self.mFont) |fnt| {
-            cacher.DestroyFont(fnt);
-            //c.TTF_CloseFont(fnt);
+            const ok = cacher.DestroyFont(fnt);
+            if (!ok) {
+                //trkr.TTF_CloseFont(fnt);
+                std.log.warn("Cache didn't actually DestroyFont!!!", .{});
+            }
             self.mFont = null;
         }
 
         self.mFont = try cacher.LoadFont(finalPath, self.mSize);
-        //self.mFont = c.TTF_OpenFont(finalPath, @intCast(self.mSize));
         if (self.mFont == null) {
             std.log.err("failed to load font with err: {s}", .{std.mem.span(c.SDL_GetError())});
         }
@@ -82,33 +88,34 @@ pub const GoFont = struct {
     }
 
     pub fn renderText(self: *Self, text: [:0]const u8, color: c.SDL_Color) goImg.GoImage {
-        const tempSurface = c.TTF_RenderUTF8_Blended(self.mFont, text.ptr, color);
+        const tempSurface = trkr.TTF_RenderUTF8_Blended(self.mFont, text, color);
         return self.surfaceToImage(tempSurface);
     }
 
     pub fn renderTextWithShadow(self: *Self, text: [:0]const u8, color: c.SDL_Color, shadowX: i32, shadowY: i32, shadowColor: c.SDL_Color) goImg.GoImage {
-        const textSurface = c.TTF_RenderUTF8_Blended(self.mFont, text.ptr, color);
-        const shadowSurface = c.TTF_RenderUTF8_Blended(self.mFont, text.ptr, shadowColor);
+        const textSurface = trkr.TTF_RenderUTF8_Blended(self.mFont, text, color);
+        const shadowSurface = trkr.TTF_RenderUTF8_Blended(self.mFont, text, shadowColor);
         return self.surfaceToImageWithShadow(textSurface, shadowSurface, shadowX, shadowY);
     }
 
     pub fn renderBlock(self: *Self, text: [:0]const u8, color: c.SDL_Color, width: usize) goImg.GoImage {
-        const tempSurface = c.TTF_RenderUTF8_Blended_Wrapped(self.mFont, text.ptr, color, width);
+        const tempSurface = trkr.TTF_RenderUTF8_Blended_Wrapped(self.mFont, text, color, width);
         return self.surfaceToImage(tempSurface);
     }
 
     pub fn renderBlockWithShadow(self: *Self, text: [:0]const u8, color: c.SDL_Color, width: usize, shadowX: i32, shadowY: i32, shadowColor: c.SDL_Color) goImg.GoImage {
-        const textSurface = c.TTF_RenderUTF8_Blended_Wrapped(self.mFont, text.ptr, color, @intCast(width));
-        const shadowSurface = c.TTF_RenderUTF8_Blended_Wrapped(self.mFont, text.ptr, shadowColor, @intCast(width));
+        const textSurface = trkr.TTF_RenderUTF8_Blended_Wrapped(self.mFont, text, color, @intCast(width));
+        const shadowSurface = trkr.TTF_RenderUTF8_Blended_Wrapped(self.mFont, text, shadowColor, @intCast(width));
         return self.surfaceToImageWithShadow(textSurface, shadowSurface, shadowX, shadowY);
     }
 
     pub fn surfaceToImage(self: *Self, tempSurface: *c.SDL_Surface) goImg.GoImage {
-        const tempTexture = c.SDL_CreateTextureFromSurface(
+        const tempTexture = trkr.SDL_CreateTextureFromSurface(
             self.mParentWindow.?.getRenderer(),
             tempSurface,
         );
-        c.SDL_FreeSurface(tempSurface);
+
+        trkr.SDL_FreeSurface(tempSurface);
 
         var img = goImg.GoImage.init();
         std.debug.assert(self.mParentWindow != null);
@@ -125,7 +132,7 @@ pub const GoFont = struct {
         shadowX: i32,
         shadowY: i32,
     ) goImg.GoImage {
-        const tempSurface = c.SDL_CreateRGBSurfaceWithFormat(
+        const tempSurface = trkr.SDL_CreateRGBSurfaceWithFormat(
             0,
             shadowX + shadowSurface.w,
             shadowY + shadowSurface.h,
@@ -133,25 +140,29 @@ pub const GoFont = struct {
             c.SDL_PIXELFORMAT_RGBA32,
         );
 
-        var rect: c.SDL_Rect = undefined;
+        var rect: c.SDL_Rect = .{
+            .x = shadowX,
+            .y = shadowY,
+            .w = shadowSurface.w,
+            .h = shadowSurface.h,
+        };
 
-        rect.x = shadowX;
-        rect.y = shadowY;
-        rect.w = shadowSurface.w;
-        rect.w = shadowSurface.h;
-
-        _ = c.SDL_SetSurfaceBlendMode(shadowSurface, c.SDL_BLENDMODE_NONE);
-        _ = c.SDL_BlitSurface(shadowSurface, null, tempSurface, &rect);
-        c.SDL_FreeSurface(shadowSurface);
+        var res = c.SDL_SetSurfaceBlendMode(shadowSurface, c.SDL_BLENDMODE_NONE);
+        std.debug.assert(res == 0);
+        res = c.SDL_BlitSurface(shadowSurface, null, tempSurface, &rect);
+        std.debug.assert(res == 0);
+        trkr.SDL_FreeSurface(shadowSurface);
 
         rect.x = 0;
         rect.y = 0;
         rect.w = textSurface.w;
-        rect.w = textSurface.h;
+        rect.h = textSurface.h;
 
-        _ = c.SDL_SetSurfaceBlendMode(textSurface, c.SDL_BLENDMODE_BLEND);
-        _ = c.SDL_BlitSurface(textSurface, null, tempSurface, &rect);
-        c.SDL_FreeSurface(textSurface);
+        res = c.SDL_SetSurfaceBlendMode(textSurface, c.SDL_BLENDMODE_BLEND);
+        std.debug.assert(res == 0);
+        res = c.SDL_BlitSurface(textSurface, null, tempSurface, &rect);
+        std.debug.assert(res == 0);
+        trkr.SDL_FreeSurface(textSurface);
 
         return self.surfaceToImage(tempSurface);
     }

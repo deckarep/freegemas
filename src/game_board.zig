@@ -119,6 +119,8 @@ pub const GameBoard = struct {
         self.mImgYellow.deinit();
         self.mImgBlue.deinit();
 
+        self.mHint.deinit();
+
         if (self.mGroupedSquares) |gs| {
             gs.deinit();
             self.mGroupedSquares = null;
@@ -879,28 +881,32 @@ pub const GameBoard = struct {
                     const blockMidX = glConsts.Board.XOffset + @as(i32, @intCast(m.super.items[i].x.?)) * glConsts.Board.GemWH + glConsts.Board.GemHalfWH;
                     const blockMidY = glConsts.Board.YOffset + @as(i32, @intCast(m.super.items[i].y.?)) * glConsts.Board.GemWH + glConsts.Board.GemHalfWH;
 
-                    try self.mParticleSysList.append(try ps.ParticleSystem.init(
-                        &self.mImgParticle1,
-                        &self.mImgParticle2,
-                        glConsts.Particles.SpawnQuantity,
-                        50,
-                        blockMidX,
-                        blockMidY,
-                        60,
-                        0.5,
-                        c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 128 },
-                        self.allocator,
-                    ));
+                    if (false) {
+                        try self.mParticleSysList.append(try ps.ParticleSystem.init(
+                            &self.mImgParticle1,
+                            &self.mImgParticle2,
+                            glConsts.Particles.SpawnQuantity,
+                            50,
+                            blockMidX,
+                            blockMidY,
+                            60,
+                            0.5,
+                            c.SDL_Color{ .r = 255, .g = 255, .b = 255, .a = 128 },
+                            self.allocator,
+                        ));
+                    }
 
                     // NOTE: This creates a single score per block.
-                    try self.mFloatingScores.append(try fs.FloatingScore.init(
-                        self.mGame,
-                        @divTrunc(score, @as(i32, @intCast(m.size()))),
-                        @floatFromInt(@as(i32, @intCast(m.super.items[i].x.?))),
-                        @floatFromInt(@as(i32, @intCast(m.super.items[i].y.?))),
-                        80,
-                        @as(i32, @intCast(i)),
-                    ));
+                    if (true) {
+                        try self.mFloatingScores.append(try fs.FloatingScore.init(
+                            self.mGame,
+                            @divTrunc(score, @as(i32, @intCast(m.size()))),
+                            @floatFromInt(@as(i32, @intCast(m.super.items[i].x.?))),
+                            @floatFromInt(@as(i32, @intCast(m.super.items[i].y.?))),
+                            80,
+                            @as(i32, @intCast(i)),
+                        ));
+                    }
                 }
 
                 // Bump the score.
@@ -912,12 +918,14 @@ pub const GameBoard = struct {
     /// Cleans up any floating scores that have ended their animations.
     fn cullFloatingScores(self: *Self) void {
         var list = &self.mFloatingScores;
+        //defer std.debug.print("floating score cap: {d}\n", .{list.capacity});
 
         // NOTE: Iterates in reverse to avoid pointer invalidation.
         var i: usize = list.items.len;
         while (i > 0) : (i -= 1) {
             if (list.items[i - 1].ended()) {
-                _ = list.swapRemove(i - 1);
+                var flScore = list.swapRemove(i - 1);
+                flScore.deinit();
             }
         }
     }

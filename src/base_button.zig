@@ -50,6 +50,7 @@ pub const BaseButton = struct {
         iconPath: []const u8,
     ) !void {
         self.mParentWindow = pw;
+        self.mImgBackground.deinit();
         _ = try self.mImgBackground.setWindowAndPath(pw, "media/buttonBackground.png");
 
         // WARN: This check may not be robust enough.
@@ -58,6 +59,9 @@ pub const BaseButton = struct {
         if (self.mHasIcon) {
             var buf: [128]u8 = undefined;
             const finalPath = try std.fmt.bufPrintZ(&buf, "media/{s}", .{iconPath});
+            if (self.mImgIcon != null) {
+                self.mImgIcon.?.deinit();
+            }
             self.mImgIcon = goImg.GoImage.init();
             _ = try self.mImgIcon.?.setWindowAndPath(pw, finalPath);
         }
@@ -70,6 +74,7 @@ pub const BaseButton = struct {
         defer textFont.deinit();
         try textFont.setAll(self.mParentWindow, "media/fuenteNormal.ttf", 27);
 
+        self.mImgCaption.deinit();
         self.mImgCaption = textFont.renderTextWithShadow(
             caption,
             fontColor,

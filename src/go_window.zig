@@ -10,12 +10,20 @@ const StateMainMenu = @import("state_main_menu.zig").StateMainMenu;
 const goImg = @import("go_image.zig");
 const gs = @import("game_sounds.zig");
 const cl = @import("go_cacheloader.zig");
+const sa = @import("sdl_scoped_allocator.zig");
 const c = @import("cdefs.zig").c;
 
+/// A fresh levelGPA is created to start with, but whenever a change of state occurs
+/// The level GPA will be .deinit with leak checks, and immediately after a brand new
+/// levelGPA is instantiated. This effectively creates a GPA scope around each game
+/// state instantiation and destruction.
+//var levelGPA = std.heap.GeneralPurposeAllocator(.{}){};
+
+// When errors is too high of a threshold we will bail early.
 var drawErrors: usize = 0;
 
 /// GameStates is a container that holds the concrete pointers
-/// NOT THE INTERFACES, but the original pointer objects
+/// NOT THE INTERFACES, but the original pointer objects.
 pub const GameStates = struct {
     mainMenu: ?StateMainMenu = null,
     howToPlay: ?StateHowToPlay = null,
@@ -24,7 +32,11 @@ pub const GameStates = struct {
 };
 
 pub const GoWindow = struct {
+    // For access to push/pop
+    scopedAllocator: *sa.ScopedAllocator,
+
     allocator: std.mem.Allocator,
+    //levelAllocator: std.mem.Allocator = levelGPA.allocator(),
 
     /// Running flag
     mShouldRun: bool,
@@ -79,9 +91,6 @@ pub const GoWindow = struct {
     // Cache loader - only a single instance
     mCacheLoader: *cl.CacheLoader,
 
-    /// Sounds controller
-    //GameSounds mGameSounds;
-
     // List of connected game controllers
     //std::vector<SDL_GameController*> gameControllers;
 
@@ -92,12 +101,15 @@ pub const GoWindow = struct {
         height: comptime_int,
         caption: [:0]const u8,
         updateInterval: u32,
-        allocator: std.mem.Allocator,
+        scoped: *sa.ScopedAllocator,
     ) !Self {
+        const alloc = scoped.allocator();
+
         std.debug.print("GoWindow::init()\n", .{});
-        cl.initCacheLoader(allocator);
+        cl.initCacheLoader(alloc);
         const o = Self{
-            .allocator = allocator,
+            .scopedAllocator = scoped,
+            .allocator = alloc,
             .mCacheLoader = cl.getCacheLoader(),
             .mCaption = caption,
             .mWidth = width,
@@ -108,15 +120,16 @@ pub const GoWindow = struct {
             .mLastTicks = c.SDL_GetTicks(),
             .mUpdateInterval = updateInterval,
             .mOptions = optsMan.OptionsManager.init(),
-            .mGameSounds = gs.GameSounds.init(allocator),
-            .mDrawingQueue = try DrawingQueue.init(allocator),
+            .mGameSounds = gs.GameSounds.init(alloc),
+            .mDrawingQueue = try DrawingQueue.init(alloc),
         };
 
         // WARNING: I spent hours tracking down an insidious bug
         // 1. Notice how I just set fields in the "o" object and return immediately?
         // 2. Previously, I was also calling other init functions and those functions
         //    were getting the address of stack "o" which is obviously undefined
-        //    behavior. Just an oversight on my end but damn, was it freak-nasty.
+        //    behavior. Just an oversight on my end but damn, it was freak-nasty.
+        //    Like just real freaky, like freakier than an early 2000s rapper freak-off.
         // 3. The fix was to introduce a separate setup function below which
         //    acts as more of an initialization of everything once the object
         //    is created.
@@ -130,21 +143,7 @@ pub const GoWindow = struct {
         self.mMouseCursor.deinit();
 
         // clean up the states.
-        if (self.mGameStates.gamePlayEndless) |*ge| {
-            ge.deinit();
-        }
-
-        if (self.mGameStates.gamePlayTimetrial) |*gtt| {
-            gtt.deinit();
-        }
-
-        if (self.mGameStates.howToPlay) |*htp| {
-            htp.deinit();
-        }
-
-        if (self.mGameStates.mainMenu) |*mm| {
-            mm.deinit();
-        }
+        self.cleanLastState();
 
         if (self.mRenderer) |rnd| {
             c.SDL_DestroyRenderer(rnd);
@@ -156,11 +155,18 @@ pub const GoWindow = struct {
             self.mWindow = null;
         }
 
-        self.mGameSounds.deinit();
+        // I now have state_game.zig in charge of calling this.
+        //self.mGameSounds.deinit();
 
         self.mCacheLoader.deinit();
 
+        // const deinit_status = levelGPA.deinit();
+        // if (deinit_status == .leak) {
+        //     std.debug.print("level allocator: leaks detected; you lack discipline!", .{});
+        // }
+
         // Quit SDL subsystems.
+        c.Mix_CloseAudio();
         c.Mix_Quit();
         c.IMG_Quit();
         c.SDL_Quit();
@@ -577,6 +583,7 @@ pub const GoWindow = struct {
             // If a prev instance existed from user going back and switching states.
             // Clean this instance up, then allow a fresh one to be created and setup.
             mm.deinit();
+            //self.scopedAllocator.pop();
             self.mGameStates.mainMenu = null;
             deleteHappened = true;
         }
@@ -585,6 +592,7 @@ pub const GoWindow = struct {
             // If a prev instance existed from user going back and switching states.
             // Clean this instance up, then allow a fresh one to be created and setup.
             htp.deinit();
+            //self.scopedAllocator.pop();
             self.mGameStates.howToPlay = null;
             deleteHappened = true;
         }
@@ -593,6 +601,7 @@ pub const GoWindow = struct {
             // If a prev instance existed from user going back and switching states.
             // Clean this instance up, then allow a fresh one to be created and setup.
             gpe.deinit();
+            //self.scopedAllocator.pop();
             self.mGameStates.gamePlayEndless = null;
             deleteHappened = true;
         }
@@ -601,8 +610,20 @@ pub const GoWindow = struct {
             // If a prev instance existed from user going back and switching states.
             // Clean this instance up, then allow a fresh one to be created and setup.
             gptt.deinit();
+            //self.scopedAllocator.pop();
             self.mGameStates.gamePlayTimetrial = null;
             deleteHappened = true;
+        }
+
+        if (deleteHappened) {
+            // const deinit_status = levelGPA.deinit();
+            // if (deinit_status == .leak) {
+            //     std.debug.print("level allocator: leaks detected; you lack discipline!", .{});
+            // }
+
+            // Create a fresh one!
+            // levelGPA = std.heap.GeneralPurposeAllocator(.{}){};
+            // self.levelAllocator = levelGPA.allocator();
         }
     }
 
@@ -621,7 +642,8 @@ pub const GoWindow = struct {
             self.close();
         } else if (std.mem.eql(u8, newState, "stateGameEndless")) {
             self.cleanLastState();
-            self.mGameStates.gamePlayEndless = try StateGame.init(.eEndless, self, self.allocator);
+            //try self.scopedAllocator.push();
+            self.mGameStates.gamePlayEndless = try StateGame.init(.eEndless, self, self.scopedAllocator.allocator());
 
             const stater = self.mGameStates.gamePlayEndless.?.stater(self);
             try stater.setup();
@@ -630,7 +652,8 @@ pub const GoWindow = struct {
             self.mCurrentStateStr = "stateGameEndless";
         } else if (std.mem.eql(u8, newState, "stateGameTimetrial")) {
             self.cleanLastState();
-            self.mGameStates.gamePlayTimetrial = try StateGame.init(.eTimetrial, self, self.allocator);
+            //try self.scopedAllocator.push();
+            self.mGameStates.gamePlayTimetrial = try StateGame.init(.eTimetrial, self, self.scopedAllocator.allocator());
 
             const stater = self.mGameStates.gamePlayTimetrial.?.stater(self);
             try stater.setup();
@@ -639,6 +662,7 @@ pub const GoWindow = struct {
             self.mCurrentStateStr = "stateGameTimetrial";
         } else if (std.mem.eql(u8, newState, "stateHowtoplay")) {
             self.cleanLastState();
+            //try self.scopedAllocator.push();
             self.mGameStates.howToPlay = try StateHowToPlay.init(self);
 
             const stater = self.mGameStates.howToPlay.?.stater(self);
@@ -648,6 +672,7 @@ pub const GoWindow = struct {
             self.mCurrentStateStr = "stateHowtoPlay";
         } else if (std.mem.eql(u8, newState, "stateMainMenu")) {
             self.cleanLastState();
+            //try self.scopedAllocator.push();
             self.mGameStates.mainMenu = try StateMainMenu.init(self);
             const stater = self.mGameStates.mainMenu.?.stater(self);
             try stater.setup();

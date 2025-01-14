@@ -57,6 +57,11 @@ pub const FloatingScore = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        self.mScoreImage.deinit();
+        self.mScoreImageShadow.deinit();
+    }
+
     pub fn ended(self: Self) bool {
         return self.mCurrentStep >= self.mTotalSteps;
     }

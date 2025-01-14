@@ -16,7 +16,6 @@ pub const GoMusic = struct {
         if (self.mSample) |sample| {
             const cache = cl.getCacheLoader();
             cache.DestroyMusic(sample);
-            //c.Mix_FreeMusic(sample);
             self.mSample = null;
         }
 
@@ -33,7 +32,6 @@ pub const GoMusic = struct {
 
         const cache = cl.getCacheLoader();
         self.mSample = try cache.LoadMusic(mPath);
-        //self.mSample = c.Mix_LoadMUS(mPath.ptr);
         if (self.mSample == null) {
             std.log.err("failed to load music sample!", .{});
         }

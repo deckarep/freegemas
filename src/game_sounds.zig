@@ -27,7 +27,6 @@ pub const GameSounds = struct {
 
     pub fn deinit(self: *Self) void {
         self.destroyResources();
-        self.unloadAvatarSounds();
     }
 
     pub fn destroyResources(self: *Self) void {
@@ -36,6 +35,8 @@ pub const GameSounds = struct {
         self.mSfxMatch3.deinit();
         self.mSfxSelect.deinit();
         self.mSfxFall.deinit();
+
+        self.unloadAvatarSounds();
     }
 
     pub fn loadResources(self: *Self) !void {
@@ -84,7 +85,7 @@ pub const GameSounds = struct {
             defer self.mSfxAvatarSounds = null;
 
             // Release this guy last.
-            defer self.gpa.free(prevSnds);
+            defer self.gpa.free(self.mSfxAvatarSounds.?);
 
             // Every sound must be .deinit
             for (prevSnds) |*snd| {

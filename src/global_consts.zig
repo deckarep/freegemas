@@ -1,3 +1,4 @@
+const std = @import("std");
 const utility = @import("utility.zig");
 const c = @import("cdefs.zig").c;
 
@@ -234,6 +235,11 @@ pub fn getCurrentChar() usize {
 /// Public global function, which advances the selected char wrapping back to the
 /// the 0th character.
 pub fn selectNextChar() void {
+    if (true) {
+        std.debug.print("selectNextChar is disabled yall\n", .{});
+        return;
+    }
+
     if (SelectedCharId < (Characters.len - 1)) {
         SelectedCharId += 1;
     } else {

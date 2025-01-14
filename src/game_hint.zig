@@ -25,6 +25,10 @@ pub const GameHint = struct {
         return Self{};
     }
 
+    pub fn deinit(self: *Self) void {
+        self.mImgSelector.deinit();
+    }
+
     /// Sets the parent window and loads the resources
     pub fn setWindow(self: *Self, w: *goWin.GoWindow) !void {
         _ = try self.mImgSelector.setWindowAndPath(w, "media/selector.png");

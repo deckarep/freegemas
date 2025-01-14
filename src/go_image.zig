@@ -3,6 +3,7 @@ const utility = @import("utility.zig");
 const goWin = @import("go_window.zig");
 const cl = @import("go_cacheloader.zig");
 const c = @import("cdefs.zig").c;
+const trkr = @import("sdl_mem_tracker.zig");
 
 pub const GoImage = struct {
     // Parent window.
@@ -33,8 +34,12 @@ pub const GoImage = struct {
 
         if (self.mTexture) |txt| {
             const cache = cl.getCacheLoader();
-            cache.DestroyImage(txt);
-            //c.SDL_DestroyTexture(txt);
+            const ok = cache.DestroyImage(txt);
+            if (!ok) {
+                std.log.warn("Cache actually didn't DestroyImage!!!", .{});
+                // Fallback by destroying the texture directly!
+                //trkr.SDL_DestroyTexture(txt);
+            }
             self.mTexture = null;
         }
     }
@@ -65,7 +70,6 @@ pub const GoImage = struct {
         // Load texture from file
         const cache = cl.getCacheLoader();
         const texture = try cache.LoadImage(self.mParentWindow.?.getRenderer(), path);
-        //const texture = c.IMG_LoadTexture(self.mParentWindow.?.getRenderer(), path.ptr);
         if (texture == null) {
             return false;
         }
@@ -74,8 +78,12 @@ pub const GoImage = struct {
         if (self.mTexture) |txt| {
             // WARNING: Only do this, if the incoming texture is NOT EQUAL to the existing txt reference.
             if (texture.? != txt) {
-                cache.DestroyImage(txt);
-                //c.SDL_DestroyTexture(txt);
+                const ok = cache.DestroyImage(txt);
+                if (!ok) {
+                    // Fallback by destroying the texture directly!
+                    //trkr.SDL_DestroyTexture(txt);
+                    std.log.warn("Cache actually didn't DestroyImage!!!", .{});
+                }
             }
         }
 
@@ -95,8 +103,12 @@ pub const GoImage = struct {
             // WARNING: Only do this, if the incoming texture is NOT EQUAL to the existing txt reference.
             if (texture.? != txt) {
                 const cache = cl.getCacheLoader();
-                cache.DestroyImage(txt);
-                //c.SDL_DestroyTexture(txt);
+                const ok = cache.DestroyImage(txt);
+                if (!ok) {
+                    // Fallback by destroying the texture directly!
+                    // trkr.SDL_DestroyTexture(txt);
+                    std.log.warn("Cache actually didn't DestroyImage!!!", .{});
+                }
             }
         }
 

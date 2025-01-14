@@ -59,11 +59,10 @@ pub const GameIndicators = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.sfxSong.deinit();
 
         // deinit all fonts
-        self.mFontScore.deinit();
         self.mFontTime.deinit();
+        self.mFontScore.deinit();
 
         // deinit all images.
         self.mAvatarPortrait.deinit();
@@ -80,6 +79,9 @@ pub const GameIndicators = struct {
         self.mHintButton.deinit();
         self.mResetButton.deinit();
         self.mExitButton.deinit();
+
+        // deinit all sound.
+        self.sfxSong.deinit();
     }
 
     pub fn setGame(self: *Self, g: *goWin.GoWindow, stateGame: *sg.StateGame) void {
@@ -115,7 +117,10 @@ pub const GameIndicators = struct {
             .a = 128,
         };
 
+        // Ensure any previously owned textures are not orphaned, so deinit.
+        self.mImgScoreHeader.deinit();
         self.mImgScoreHeader = tempHeaderFont.renderTextWithShadow("score", headerColor, 1, 1, headerShadow);
+        self.mImgTimeHeader.deinit();
         self.mImgTimeHeader = tempHeaderFont.renderTextWithShadow("time left", headerColor, 1, 1, headerShadow);
 
         // Avatar hack.
@@ -211,6 +216,9 @@ pub const GameIndicators = struct {
                 },
             );
 
+            // 1. Free the previous texture!
+            self.mImgTime.deinit();
+            // 2. Assign the new one!
             self.mImgTime = self.mFontTime.renderText(txtTime, timeTxtColor);
             self.mRemainingTimePrev = self.mRemainingTime;
         }
@@ -414,6 +422,10 @@ pub const GameIndicators = struct {
         if (self.mScore != self.mScorePrev) {
             var buf: [16]u8 = undefined;
             const txtScore = try std.fmt.bufPrintZ(&buf, "{d}", .{self.mScore});
+            // Yes, this is important. Free the prev mImgScore and if it has a texture it will
+            // also be freed.
+            self.mImgScore.deinit();
+            // Then the new one can be safely assigned and not orphan the old texture.
             self.mImgScore = self.mFontScore.renderText(txtScore, fc);
             self.mScorePrev = self.mScore;
         }

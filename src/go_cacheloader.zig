@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("cdefs.zig").c;
+const trkr = @import("sdl_mem_tracker.zig");
 
 var cacheInitialized: bool = false;
 var cacheLoaderInstance: CacheLoader = undefined;
@@ -12,9 +13,13 @@ pub fn initCacheLoader(gpa: std.mem.Allocator) void {
 pub fn getCacheLoader() *CacheLoader {
     // This must always return true!
     std.debug.assert(cacheInitialized);
-
     return &cacheLoaderInstance;
 }
+
+const CacheObject = struct {
+    count: usize = 0,
+    data: *anyopaque,
+};
 
 /// The CacheLoader should eventually become the gateway to ALL SDL asset loading no matter what.
 /// This will ensure that repeated loads of the same resource are just loaded once and destroyed
@@ -24,21 +29,26 @@ pub fn getCacheLoader() *CacheLoader {
 /// TODO: Fonts but a unique font should be both the (filepath, size) of the font requested.
 pub const CacheLoader = struct {
     gpa: std.mem.Allocator,
-    cache: std.StringHashMap(*anyopaque),
+    cache: std.StringHashMap(CacheObject),
 
     const Self = @This();
 
     pub fn init(gpa: std.mem.Allocator) Self {
         return Self{
             .gpa = gpa,
-            .cache = std.StringHashMap(*anyopaque).init(gpa),
+            .cache = std.StringHashMap(CacheObject).init(gpa),
         };
     }
 
     pub fn deinit(self: *Self) void {
+        //std.debug.assert(self.cache.count() == 0);
+        if (self.cache.count() != 0) {
+            std.log.warn("Hey your CACHE IS NOT EMPTY: and has {d} items left in it!", .{self.cache.count()});
+        }
         // TODO: still, iterate and release all resources of course.
         // ACTUALLY - upon shutdown, all Destory functions should have already been
         // called, and the cache should be empty to be correct.
+
         var iter = self.cache.iterator();
         while (iter.next()) |nxt| {
             std.debug.print("cache key still alive after exiting: \n  => {s}\n", .{nxt.key_ptr.*});
@@ -46,9 +56,27 @@ pub const CacheLoader = struct {
         self.cache.deinit();
     }
 
+    fn incRefCountForKey(self: *Self, key: []const u8) void {
+        // Bump reference count with a mutable ptr to CacheObject.
+        var cacheObjPtr = self.cache.getPtr(key).?;
+        cacheObjPtr.count += 1;
+    }
+
+    fn decRefCountForKey(self: *Self, key: []const u8) bool {
+        // If we're not at 0, just decrement the reference count.
+        var cacheObjPtr = self.cache.getPtr(key).?;
+        if (cacheObjPtr.count > 0) {
+            cacheObjPtr.count -= 1;
+            // NOTE: decrementing the reference count counts as a valid Destroy.
+            return true;
+        }
+        // This means we're bottomed out at this point.
+        return false;
+    }
+
     /// This function loads fonts but ensures that a uniquely cached font
     /// is discriminated by: (path::size). So if I load fontA, 12 and fontA, 16
-    /// The cache must have two entries.
+    /// The cache must have two entries by treating them as differing fonts.
     pub fn LoadFont(self: *Self, path: [:0]const u8, size: usize) !?*c.TTF_Font {
         // NOTE: a font key of (path::size) is considered a unique font, so this becomes
         // our font key.
@@ -56,27 +84,29 @@ pub const CacheLoader = struct {
         const fontKey = try std.fmt.bufPrintZ(&buf, "{s}::{d}", .{ path, size });
 
         if (self.cache.contains(fontKey)) {
+            self.incRefCountForKey(path);
+            // Object already cached, so just return it.
             std.debug.print("font: {s} already loaded yay!\n", .{fontKey});
-            return @alignCast(@ptrCast(self.cache.get(fontKey).?));
+            return @alignCast(@ptrCast(self.cache.get(fontKey).?.data));
         }
 
-        const font = c.TTF_OpenFont(path, @intCast(size));
+        const font = trkr.TTF_OpenFont(path, size);
         if (font == null) return null;
 
         // Take an owned copy of the key for safety, since the passed in path could
         // be stack allocated!!!
         const ownedKey = try self.gpa.dupe(u8, fontKey);
-        try self.cache.put(ownedKey, font.?);
+        try self.cache.put(ownedKey, CacheObject{ .data = font.?, .count = 0 });
 
         return font;
     }
 
-    pub fn DestroyFont(self: *Self, font: *c.TTF_Font) void {
+    pub fn DestroyFont(self: *Self, font: *c.TTF_Font) bool {
         // For now, just iterate to find the item.
         var iter = self.cache.iterator();
         var whichKey: ?[]const u8 = null;
         while (iter.next()) |entry| {
-            if (@as(*anyopaque, @alignCast(@ptrCast(font))) == entry.value_ptr.*) {
+            if (@as(*anyopaque, @alignCast(@ptrCast(font))) == entry.value_ptr.*.data) {
                 whichKey = entry.key_ptr.*;
             }
         }
@@ -85,24 +115,33 @@ pub const CacheLoader = struct {
         // Any subsequent destroy calls will be a NOP as expected.
         if (whichKey == null) {
             // Nothing to do for now.
-            return;
+            return false;
         }
 
-        // 1. Destroy the font.
-        c.TTF_CloseFont(font);
+        if (self.decRefCountForKey(whichKey.?)) {
+            // If true, we're done for now.
+            return true;
+        }
 
-        // 3. Delete the owned key.
-        defer self.gpa.free(whichKey.?);
+        // Destroy the font.
+        trkr.TTF_CloseFont(font);
 
-        // 2. Remove the entry
-        _ = self.cache.remove(whichKey.?);
+        // Remove the entry
+        std.debug.assert(self.cache.remove(whichKey.?));
+
+        // Delete the owned key.
+        self.gpa.free(whichKey.?);
+
+        return true;
     }
 
     /// This function loads wavs.
     pub fn LoadWav(self: *Self, path: [:0]const u8) !*c.Mix_Chunk {
         if (self.cache.contains(path)) {
+            self.incRefCountForKey(path);
+            // Return the obj, it's already known and cached.
             std.debug.print("wav: {s} already loaded yay!\n", .{path});
-            return @alignCast(@ptrCast(self.cache.get(path).?));
+            return @alignCast(@ptrCast(self.cache.get(path).?.data));
         }
 
         const sample = c.Mix_LoadWAV(path.ptr);
@@ -111,7 +150,7 @@ pub const CacheLoader = struct {
         // Take an owned copy of the key for safety, since the passed in path could
         // be stack allocated!!!
         const ownedKey = try self.gpa.dupe(u8, path);
-        try self.cache.put(ownedKey, sample);
+        try self.cache.put(ownedKey, CacheObject{ .data = sample, .count = 0 });
 
         return sample;
     }
@@ -122,7 +161,7 @@ pub const CacheLoader = struct {
         var iter = self.cache.iterator();
         var whichKey: ?[]const u8 = null;
         while (iter.next()) |entry| {
-            if (@as(*anyopaque, @alignCast(@ptrCast(sample))) == entry.value_ptr.*) {
+            if (@as(*anyopaque, @alignCast(@ptrCast(sample))) == entry.value_ptr.*.data) {
                 whichKey = entry.key_ptr.*;
             }
         }
@@ -134,25 +173,32 @@ pub const CacheLoader = struct {
             return;
         }
 
-        // 1. Destroy the wav sample.
+        if (self.decRefCountForKey(whichKey.?)) {
+            // If true, we're done for now.
+            return;
+        }
+
+        // Destroy the wav sample.
         c.Mix_FreeChunk(sample);
 
-        // 3. Delete the owned key.
-        defer self.gpa.free(whichKey.?);
+        // Remove the entry
+        std.debug.assert(self.cache.remove(whichKey.?));
 
-        // 2. Remove the entry
-        _ = self.cache.remove(whichKey.?);
+        // Delete the owned key.
+        self.gpa.free(whichKey.?);
     }
 
     /// This function loads music.
     pub fn LoadMusic(self: *Self, path: [:0]const u8) !?*c.Mix_Music {
         if (self.cache.contains(path)) {
+            self.incRefCountForKey(path);
             std.debug.print("mus: {s} already loaded yay!\n", .{path});
-            return @alignCast(@ptrCast(self.cache.get(path).?));
+            return @alignCast(@ptrCast(self.cache.get(path).?.data));
         }
 
         std.debug.print("mus: {s} loaded for the first time.\n", .{path});
-        const sample = c.Mix_LoadMUS(path.ptr);
+        //const sample = c.Mix_LoadMUS(path.ptr);
+        const sample = trkr.Mix_LoadMUS(path);
         if (sample == null) {
             // TODO: handle this better.
             return sample;
@@ -161,7 +207,7 @@ pub const CacheLoader = struct {
         // Take an owned copy of the key for safety, since the passed in path could
         // be stack allocated!!!
         const ownedKey = try self.gpa.dupe(u8, path);
-        try self.cache.put(ownedKey, sample.?);
+        try self.cache.put(ownedKey, CacheObject{ .data = sample.?, .count = 0 });
 
         return sample;
     }
@@ -174,7 +220,7 @@ pub const CacheLoader = struct {
         var iter = self.cache.iterator();
         var whichKey: ?[]const u8 = null;
         while (iter.next()) |entry| {
-            if (@as(*anyopaque, @alignCast(@ptrCast(sample))) == entry.value_ptr.*) {
+            if (@as(*anyopaque, @alignCast(@ptrCast(sample))) == entry.value_ptr.*.data) {
                 whichKey = entry.key_ptr.*;
                 break;
             }
@@ -188,26 +234,36 @@ pub const CacheLoader = struct {
             return;
         }
 
-        // 1. Destroy the sample.
-        c.Mix_FreeMusic(sample);
+        if (self.decRefCountForKey(whichKey.?)) {
+            // If true, we're done for now.
+            return;
+        }
 
-        // 2. Clean the owned copy of the key.
-        defer self.gpa.free(whichKey.?);
+        // Destroy the sample.
+        trkr.Mix_FreeMusic(sample);
 
-        // 3. But first remove the actual entry
-        _ = self.cache.remove(whichKey.?);
+        // But first remove the actual entry
+        std.debug.assert(self.cache.remove(whichKey.?));
+
+        // Clean the owned copy of the key.
+        self.gpa.free(whichKey.?);
     }
 
     /// This function loads an image (texture).
+    /// If the same image is requested, the load returns a ptr to the same image without actually
+    /// loading thanks to caching. All calls to Load must have matching calls to Destroy.
+    /// This is because Load/Destroy does referencing counting.
     pub fn LoadImage(self: *Self, renderer: ?*c.SDL_Renderer, path: [:0]const u8) !?*c.SDL_Texture {
-        std.debug.print("cache size: {d}\n", .{self.cache.count()});
+        std.debug.print("LoadImage: for path: {s}, cache size: {d}\n", .{ path, self.cache.count() });
         if (self.cache.contains(path)) {
+            self.incRefCountForKey(path);
+            // Return the obj.
             std.debug.print("img: {s} already loaded yay!\n", .{path});
-            return @alignCast(@ptrCast(self.cache.get(path).?));
+            return @alignCast(@ptrCast(self.cache.get(path).?.data));
         }
 
         std.debug.print("img: {s} loaded for the first time.\n", .{path});
-        const img = c.IMG_LoadTexture(renderer, path.ptr);
+        const img = trkr.IMG_LoadTexture(renderer, path);
         if (img == null) {
             // TODO: handle this better.
             return img;
@@ -216,20 +272,25 @@ pub const CacheLoader = struct {
         // Take an owned copy of the key for safety, since the passed in path could
         // be stack allocated!!!
         const ownedKey = try self.gpa.dupe(u8, path);
-        try self.cache.put(ownedKey, img.?);
+        // This is the first we've seen of the item, so it has a starting ref count of zero.
+        try self.cache.put(ownedKey, CacheObject{ .data = img.?, .count = 0 });
 
         return img;
     }
 
     /// This function destroys an image (texture).
-    pub fn DestroyImage(self: *Self, img: *c.SDL_Texture) void {
+    pub fn DestroyImage(self: *Self, img: *c.SDL_Texture) bool {
         // Note: we only have a handle to the original pointer in the cache (possibly)
         // So we just scan for it and delete it if found.
 
+        // Yes, this is a linear scan...because we're only provided a pointer to the image.
+        // In the future I'll optimize if this turns out to be slow but keep in mind.
+        // Assets are loaded/destroyed on level load and unload, this is not the hot-path.
+        // Fucken noob always trying to prematurely optimize shit.
         var iter = self.cache.iterator();
         var whichKey: ?[]const u8 = null;
         while (iter.next()) |entry| {
-            if (@as(*anyopaque, @alignCast(@ptrCast(img))) == entry.value_ptr.*) {
+            if (@as(*anyopaque, @alignCast(@ptrCast(img))) == entry.value_ptr.*.data) {
                 whichKey = entry.key_ptr.*;
                 break;
             }
@@ -239,17 +300,25 @@ pub const CacheLoader = struct {
             // Nothing to do for now...
             // NOTE: This can occur if you attempt to load the same asset multiple times.
             // Any subsequent destroy calls will be a NOP as expected.
-            return;
+            return false;
         }
 
-        // 1. Destroy the image (texture).
-        c.SDL_DestroyTexture(img);
-        std.debug.print("Image destroyed: {s}\n", .{whichKey.?});
+        if (self.decRefCountForKey(whichKey.?)) {
+            // If true, we're done for now so return true.
+            return true;
+        }
 
-        // 2. Clean the owned copy of the key.
-        defer self.gpa.free(whichKey.?);
+        // Otherwise, release everything, for reals Nacho.
 
-        // 3. But first remove the actual entry
-        _ = self.cache.remove(whichKey.?);
+        // Destroy the image (texture).
+        trkr.SDL_DestroyTexture(img);
+
+        // Remove the cache entry.
+        std.debug.assert(self.cache.remove(whichKey.?));
+
+        // Clean the owned copy of the key.
+        self.gpa.free(whichKey.?);
+
+        return true;
     }
 };

@@ -27,7 +27,7 @@ pub const GoSound = struct {
         );
 
         const cache = cl.getCacheLoader();
-        self.mSample = try cache.LoadWav(mPath); //c.Mix_LoadWAV(mPath.ptr);
+        self.mSample = try cache.LoadWav(mPath);
         if (self.mSample == null) {
             std.log.err("failed to load wav with err!", .{});
         }
@@ -42,6 +42,8 @@ pub const GoSound = struct {
             const cache = cl.getCacheLoader();
             cache.DestroyWav(sample);
             self.mSample = null;
+
+            std.debug.print("sound released...\n", .{});
         }
     }
 
