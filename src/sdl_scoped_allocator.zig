@@ -44,6 +44,15 @@ pub const CMemInterface = struct {
 };
 
 pub const ScopedAllocator = struct {
+    // TODO: make these atomic probably.
+    count_activeBytes: u64 = 0,
+    count_totalBytes: u64 = 0,
+    count_allocs: u64 = 0,
+    count_alloc_failures: u64 = 0,
+    count_allocs_success: u64 = 0,
+    count_resizes: u64 = 0,
+    count_frees: u64 = 0,
+
     allocatorStack: allocStackType = undefined,
 
     const Self = @This();
@@ -182,9 +191,74 @@ pub const ScopedAllocator = struct {
         };
     }
 
-    /// allocator simply returns the current allocator interface.
+    /// allocator simply returns an allocator interface that internally wraps
+    /// the ScopedAllocator to allow for metrics.
     pub inline fn allocator(self: *Self) std.mem.Allocator {
-        return self.allocatorStack.items[self.currIdx()].allocator();
+        return .{
+            .ptr = self,
+            .vtable = &.{
+                .alloc = wrappedAlloc,
+                .resize = wrappedResize,
+                .free = wrappedFree,
+            },
+        };
+    }
+
+    pub fn wrappedReport(self: Self) void {
+        std.debug.print("***wrappedReport***\n", .{});
+        std.debug.print("activeBytes: {d}\n", .{self.count_activeBytes});
+        std.debug.print("totalBytes: {d}\n", .{self.count_totalBytes});
+        std.debug.print("allocs: {d}\n", .{self.count_allocs});
+        std.debug.print("allocs_success: {d}\n", .{self.count_allocs_success});
+        std.debug.print("allocs_failures: {d}\n", .{self.count_alloc_failures});
+        std.debug.print("resizes: {d}\n", .{self.count_resizes});
+        std.debug.print("frees: {d}\n", .{self.count_frees});
+        std.debug.print("missing frees (delta): {d}\n", .{self.count_allocs - self.count_frees});
+    }
+
+    fn wrappedAlloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
+        var self: *ScopedAllocator = @alignCast(@ptrCast(ctx));
+        var childAllocator = self.allocatorStack.items[self.currIdx()].allocator();
+        self.count_allocs += 1;
+        const ptr = childAllocator.rawAlloc(len, ptr_align, ret_addr);
+        if (ptr == null) {
+            self.count_alloc_failures += 1;
+            return null;
+        }
+        self.count_allocs_success += 1;
+        self.count_activeBytes += len;
+        self.count_totalBytes += len;
+        return ptr.?;
+    }
+
+    fn wrappedResize(ctx: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) bool {
+        var self: *ScopedAllocator = @alignCast(@ptrCast(ctx));
+        var childAllocator = self.allocatorStack.items[self.currIdx()].allocator();
+        self.count_resizes += 1;
+        const old_len = buf.len;
+        const stable = childAllocator.rawResize(buf, buf_align, new_len, ret_addr);
+        if (stable) {
+            if (new_len > old_len) {
+                self.count_activeBytes += new_len;
+                self.count_activeBytes -= old_len;
+                self.count_totalBytes += new_len;
+                self.count_totalBytes -= old_len;
+            } else {
+                self.count_activeBytes -= old_len;
+                self.count_activeBytes += new_len;
+                self.count_totalBytes -= old_len;
+                self.count_totalBytes += new_len;
+            }
+        }
+        return stable;
+    }
+
+    fn wrappedFree(ctx: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
+        var self: *ScopedAllocator = @alignCast(@ptrCast(ctx));
+        var childAllocator = self.allocatorStack.items[self.currIdx()].allocator();
+        self.count_frees += 1;
+        self.count_activeBytes -= buf.len;
+        return childAllocator.rawFree(buf, buf_align, ret_addr);
     }
 
     /// currIdx returns the index of the currently activeAllocator.

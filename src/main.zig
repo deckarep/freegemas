@@ -102,8 +102,10 @@ var scopedAllocator = sa.ScopedAllocator.init();
 
 pub fn main() !void {
     try scopedAllocator.setup();
+    defer scopedAllocator.wrappedReport();
+
     const cMemInter = scopedAllocator.getMemoryInterface();
-    if (true) {
+    if (false) {
         // Setup SDL to use our custom scoped functions.
         const res = c.SDL_SetMemoryFunctions(
             cMemInter.malloc,
