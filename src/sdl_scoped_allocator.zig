@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("cdefs.zig").c;
+//const c = @import("cdefs.zig").c;
 
 const gpaType = std.heap.GeneralPurposeAllocator(.{
     .safety = true,
@@ -7,9 +7,9 @@ const gpaType = std.heap.GeneralPurposeAllocator(.{
     .stack_trace_frames = 100,
 });
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}){
-    //.backing_allocator = //std.heap.c_allocator,
-};
+//var gpa = std.heap.GeneralPurposeAllocator(.{}){
+//.backing_allocator = //std.heap.c_allocator,
+//};
 
 // NOTE: C-based malloc, calloc, realloc and free basically use a general purpose
 // stricter (larger) alignment that is intended to be suitable across all possible
@@ -20,7 +20,7 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){
 
 // Effective result is that: all allocations will be 16 byte aligned which is suitable on
 // a 64-bit platform.
-const PTR_ALIGNMENT = 16;
+const PTR_ALIGNMENT: u29 = 16;
 
 var activeAllocator: std.mem.Allocator = undefined;
 var scopedAllocator: *ScopedAllocator = undefined;
@@ -32,12 +32,19 @@ pub var metadata: metadataType = undefined;
 const mappingType = std.AutoHashMap(usize, usize);
 pub var mapping: mappingType = undefined;
 
+const allocStackType = std.ArrayList(gpaType);
+
+/// CMemInterface is simply a collection of C-abi pointers to functions
+/// that can be used to give access to the ScopedAllocator's implemenation.
+pub const CMemInterface = struct {
+    malloc: fn (size: usize) callconv(.C) ?*anyopaque,
+    calloc: fn (num: usize, size: usize) callconv(.C) ?*anyopaque,
+    realloc: fn (ptr: ?*anyopaque, size: usize) callconv(.C) ?*anyopaque,
+    free: fn (ptr: ?*anyopaque) callconv(.C) void,
+};
+
 pub const ScopedAllocator = struct {
-    idx: usize = 0,
-    // TODO: this is likely better served as a dynamic ArrayList.
-    // This way you could push/pop to an arbitrary depth of GPA's
-    // Not that, you'd want to go nuts with it...sheesh.
-    allocators: [10]gpaType = undefined,
+    allocatorStack: allocStackType = undefined,
 
     const Self = @This();
 
@@ -51,60 +58,144 @@ pub const ScopedAllocator = struct {
     /// It therefore only legal to call .deinit when the ScopeAllocator is back at root scope.
     /// The final root allocator will be checked for leaks.
     pub fn deinit(self: *Self) void {
-        // 1. The stack must be back to zero!
-        std.debug.assert(self.idx == 0);
+        // 1. Ensure the stack must be back to the root GPA!
+        std.debug.assert(self.allocatorStack.items.len == 1);
 
         // 2. The root can be deinitialized then.
-        const deinit_status = self.allocators[0].deinit();
+        const deinit_status = self.allocatorStack.items[0].deinit();
         if (deinit_status == .leak) {
             std.debug.print("ROOT: leaks detected; you lack discipline!", .{});
         }
     }
 
-    pub fn setup(self: *Self) void {
+    pub fn setup(self: *Self) !void {
         // Capture a global reference to this ScopeAllocator instance.
         scopedAllocator = self;
 
-        // Initialize the root allocator.
-        self.allocators[0] = gpaType{
-            // NOTE: the macOS app leaks can detect leaks with the classic C-based malloc/free
-            // So we use this on purpose.
-            //.backing_allocator = std.heap.c_allocator,
-        };
-
+        // Initialize the root allocator, which is at index 0.
+        var rootGPA = gpaType{};
+        self.allocatorStack = allocStackType.init(rootGPA.allocator());
+        _ = try self.allocatorStack.append(rootGPA);
+        rootGPA = undefined;
+        // gpaType{
+        //     // NOTE: the macOS app leaks can detect leaks with the classic C-based malloc/free
+        //     // So we use this on purpose.
+        //     //.backing_allocator = std.heap.c_allocator,
+        // };
         activeAllocator = self.allocator();
         metadata = metadataType.init(activeAllocator);
         mapping = mappingType.init(activeAllocator);
 
-        if (false) {
-            // Setup SDL to use our custom scoped functions.
-            const res = c.SDL_SetMemoryFunctions(
-                myMalloc,
-                myCalloc,
-                myRealloc,
-                myFree,
-            );
+        // Figure out this platforms native memory alignment for C-abi calls.
+        try self.detectAlignment();
+    }
 
-            if (res != 0) {
-                std.log.err("SDL_SetMemoryFunctions err: {s}\n", .{std.mem.span(c.SDL_GetError())});
-                @panic("failed to shim SDL memory funcs!");
+    /// Detects the generic and strictests alignment that the C abi uses. This alignment will be used
+    /// when the C abi functions are used as a shim along with the GPA. I know this code
+    /// can likely be streamlined or refactored or perhaps some compilers provide
+    /// this information but keep in mind this is highly, highly dependent on both
+    /// the platform and compiler suite/tooling used for a given environment.
+    pub fn detectAlignment(self: *Self) !void {
+        const iterationCount = 100; // Number of allocations to test
+        const maxAlignment = 256; // Upper limit of alignment to test
+
+        // Bucket of tallies by alignment.
+        var universalAlignmentTallies = [9]usize{
+            0, // 1
+            0, // 2
+            0, // 4
+            0, // 8
+            0, // 16
+            0, // 32
+            0, // 64
+            0, // 128
+            0, // 256
+        };
+
+        var tmpAlloc = self.allocator();
+        const tmpPointers = try tmpAlloc.alloc(usize, iterationCount);
+        defer {
+            // Clean each temp pointers.
+            for (tmpPointers) |intPtr| {
+                const ptr: ?*anyopaque = @ptrFromInt(intPtr);
+                std.c.free(ptr);
+            }
+
+            // Clean the container itself.
+            tmpAlloc.free(tmpPointers);
+        }
+
+        for (0..iterationCount) |i| {
+            const ptr = std.c.malloc(1);
+            // NOTE: malloc will keep returning the same pointer, so we need to prevent it
+            // from recycling pointers by freeing everything at the end and avoiding the use
+            // of defer.
+
+            if (ptr == null) {
+                std.debug.print("malloc failed on iteration {d}\n", .{i});
+                return;
+            }
+
+            const intPtr = @intFromPtr(ptr.?);
+            // Record the tmp ptr, to later free it.
+            tmpPointers[i] = intPtr;
+
+            var idx: usize = 0;
+            var currentAlign: usize = 1;
+            // Tally the alignments found for each given ptr.
+            while (currentAlign <= maxAlignment) {
+                if ((intPtr % currentAlign) == 0) {
+                    universalAlignmentTallies[idx] += 1;
+                    currentAlign <<= 1;
+                    idx += 1;
+                } else {
+                    break;
+                }
             }
         }
+
+        // Find the strictest alignment used on this platform from the tallies.
+        var strictestAlignment: u29 = 1;
+        for (universalAlignmentTallies, 0..) |val, idx| {
+            if (val < iterationCount) {
+                strictestAlignment = @as(u29, 1) << @as(u5, @intCast(idx - 1));
+                break;
+            }
+        }
+
+        std.debug.print(
+            "Minimum detected alignment of c.malloc: {any} alignment\n",
+            .{strictestAlignment},
+        );
+    }
+
+    /// Returns the complete C-abi memory interface if an app would like to use these for
+    /// all their C-based memory allocations needs.
+    pub inline fn getMemoryInterface(self: Self) CMemInterface {
+        _ = self;
+
+        return .{
+            .malloc = myMalloc,
+            .calloc = myCalloc,
+            .realloc = myRealloc,
+            .free = myFree,
+        };
     }
 
     /// allocator simply returns the current allocator interface.
     pub inline fn allocator(self: *Self) std.mem.Allocator {
-        return self.allocators[self.idx].allocator();
+        return self.allocatorStack.items[self.currIdx()].allocator();
+    }
+
+    /// currIdx returns the index of the currently activeAllocator.
+    inline fn currIdx(self: Self) usize {
+        return self.allocatorStack.items.len - 1;
     }
 
     /// This will push and activate a freshly initialized GPA allocator onto the scope stack.
     /// Going forward, all allocations will use this GPA instance.
-    pub fn push(self: *Self) !void {
-        // Ensure we don't push too many beyond max.
-        std.debug.assert(self.idx < (self.allocators.len - 1));
-
-        self.idx += 1;
-        self.allocators[self.idx] = gpaType{};
+    pub inline fn push(self: *Self) !void {
+        _ = try self.allocatorStack.append(gpaType{});
         activeAllocator = self.allocator();
     }
 
@@ -114,7 +205,7 @@ pub const ScopedAllocator = struct {
     /// An assertion ensures that you don't attempt to pop the root allocator.
     pub fn pop(self: *Self) void {
         // 1. Ensure we're at least above the root allocator and won't underflow.
-        std.debug.assert(self.idx > 0);
+        std.debug.assert(self.allocatorStack.items.len > 0);
 
         // 2. Assert we left nothing over in mapping at this bucket.
         var mappingIter = mapping.iterator();
@@ -135,15 +226,14 @@ pub const ScopedAllocator = struct {
             std.debug.print("{d}: leaks detected; you lack discipline!\n", .{self.idx});
         }
 
-        self.allocators[self.idx] = undefined;
-        self.idx -= 1;
+        _ = self.allocatorStack.pop();
         activeAllocator = self.allocator();
     }
 
     /// This allocates a default 16 byte aligned address for fresh memory.
     /// The memory returned is uninitialized.
     fn myMalloc(size: usize) callconv(.C) ?*anyopaque {
-        std.debug.print("myMalloc(size:{d}), mapping count: {d}, scope: {d}\n", .{ size, metadata.count(), scopedAllocator.idx });
+        std.debug.print("myMalloc(size:{d}), mapping count: {d}, scope: {d}\n", .{ size, metadata.count(), scopedAllocator.currIdx() });
         const memBlock = activeAllocator.alignedAlloc(u8, PTR_ALIGNMENT, size) catch return null;
 
         // 2. If this assertion failed, this is a bug in the Zig stdlib.
@@ -152,14 +242,14 @@ pub const ScopedAllocator = struct {
 
         // 3. Record the metadata of size and scope index.
         metadata.put(intPtr, size) catch return null;
-        mapping.put(intPtr, scopedAllocator.idx) catch return null;
+        mapping.put(intPtr, scopedAllocator.currIdx()) catch return null;
 
         // 4. Finally, return the newly allocated child pointer.
         return memBlock.ptr;
     }
 
     fn myCalloc(num: usize, size: usize) callconv(.C) ?*anyopaque {
-        std.debug.print("myCalloc(num:{d}, size:{d}, mapping count: {d}, scope: {d})\n", .{ num, size, metadata.count(), scopedAllocator.idx });
+        std.debug.print("myCalloc(num:{d}, size:{d}, mapping count: {d}, scope: {d})\n", .{ num, size, metadata.count(), scopedAllocator.currIdx() });
 
         // 1. Calloc has a slightly differing signature than malloc so we must multiply: num * size, to compute how many bytes
         // are actually requested.
@@ -174,7 +264,7 @@ pub const ScopedAllocator = struct {
 
         // 3. Record the new ptr's metadata and scope index.
         metadata.put(intPtr, computedBytes) catch return null;
-        mapping.put(intPtr, scopedAllocator.idx) catch return null;
+        mapping.put(intPtr, scopedAllocator.currIdx()) catch return null;
 
         // 4. Finally return the child ptr.
         return memBlock.ptr;
@@ -206,7 +296,7 @@ pub const ScopedAllocator = struct {
                 if (possibleNewIntPtr != intPtr) {
                     // Not the same, so record the new pointers within the metadata.
                     metadata.put(possibleNewIntPtr, size) catch return null;
-                    mapping.put(possibleNewIntPtr, scopedAllocator.idx) catch return null;
+                    mapping.put(possibleNewIntPtr, scopedAllocator.currIdx()) catch return null;
 
                     // And remove the original one, because realloc decided to use a new ptr.
                     _ = metadata.remove(intPtr);
@@ -214,7 +304,7 @@ pub const ScopedAllocator = struct {
                 } else {
                     // Otherwise, the same ptr was used, just overwrite metadata records with the new size and scope index.
                     metadata.put(possibleNewIntPtr, size) catch return null;
-                    mapping.put(possibleNewIntPtr, scopedAllocator.idx) catch return null;
+                    mapping.put(possibleNewIntPtr, scopedAllocator.currIdx()) catch return null;
                 }
 
                 // Finally, return the child ptr.
@@ -234,14 +324,14 @@ pub const ScopedAllocator = struct {
 
             // 2.  Grab the metadata out.
             const size = metadata.get(intPtr).?;
-            const allocatorBucket = mapping.get(intPtr).?;
+            const scopeIdx = mapping.get(intPtr).?;
 
             std.debug.print("myFree(ptr:{*}, bytes: {d}, alloc_bucket: {d}, mapping count:{d}, scope: {d})\n", .{
                 block,
                 size,
-                allocatorBucket,
+                scopeIdx,
                 mapping.count(),
-                scopedAllocator.idx,
+                scopedAllocator.currIdx(),
             });
 
             // 6. Lastly, clean out the metadata.
@@ -261,11 +351,11 @@ pub const ScopedAllocator = struct {
             const slice: []align(PTR_ALIGNMENT) u8 = @alignCast(multiPtr[0..size]);
 
             // 4. Grab a reference to the allocator for this scope and free it.
-            const whichAllocator = scopedAllocator.allocators[allocatorBucket].allocator();
+            const whichAllocator = scopedAllocator.allocatorStack.items[scopeIdx].allocator();
             whichAllocator.free(slice);
         }
 
         // 5. Zig and the C standard allow invoking free against null ptrs.
-        // So this effectively is a nop.
+        // So this effectively is a NOP.
     }
 };

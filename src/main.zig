@@ -101,17 +101,22 @@ const sa = @import("sdl_scoped_allocator.zig");
 var scopedAllocator = sa.ScopedAllocator.init();
 
 pub fn main() !void {
-    if (false) {
+    try scopedAllocator.setup();
+    const cMemInter = scopedAllocator.getMemoryInterface();
+    if (true) {
+        // Setup SDL to use our custom scoped functions.
+        const res = c.SDL_SetMemoryFunctions(
+            cMemInter.malloc,
+            cMemInter.calloc,
+            cMemInter.realloc,
+            cMemInter.free,
+        );
 
-        // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        // const alloc = gpa.allocator();
-
-        // const res = try alloc.alignedAlloc(u8, 16, 10);
-        // alloc.free(res);
-
-        //std.process.exit(0);
+        if (res != 0) {
+            std.log.err("SDL_SetMemoryFunctions err: {s}\n", .{std.mem.span(c.SDL_GetError())});
+            @panic("failed to shim SDL memory funcs!");
+        }
     }
-    scopedAllocator.setup();
 
     //@panic("Question, can you nest GPA, such that you can take baseline snapshots of when to check for leaks?")
     trkr.initMemTracker(scopedAllocator.allocator());
