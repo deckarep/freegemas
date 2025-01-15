@@ -5,105 +5,14 @@ const c = @import("cdefs.zig").c;
 const trkr = @import("sdl_mem_tracker.zig");
 const sa = @import("sdl_scoped_allocator.zig");
 
-// var gpa = std.heap.GeneralPurposeAllocator(.{
-//     .safety = true,
-//     .verbose_log = true,
-// }){};
-// const alloc = gpa.allocator();
-
-// // Stores a mapping of pointers => requested size.
-// var metadata = std.AutoHashMap(usize, usize).init(alloc);
-
-// fn myMalloc(size: usize) callconv(.C) ?*anyopaque {
-//     std.debug.print("myMalloc(size:{d}), metadata count: {d}\n", .{ size, metadata.count() });
-//     const memBlock = alloc.alloc(u8, size) catch return null;
-//     const intPtr = @intFromPtr(memBlock.ptr);
-//     metadata.put(intPtr, size) catch return null;
-//     return memBlock.ptr;
-// }
-
-// fn myCalloc(num: usize, size: usize) callconv(.C) ?*anyopaque {
-//     std.debug.print("myCalloc(num:{d}, size:{d}, metadata count: {d})\n", .{ num, size, metadata.count() });
-
-//     // Calloc has a slightly differing signature than malloc so we must multiply: num * size, to compute how many bytes
-//     // are actually requested.
-//     const computedBytes = num * size;
-//     const memBlock = alloc.alloc(u8, computedBytes) catch return null;
-//     // Zero out that shit.
-//     for (memBlock) |*b| {
-//         b.* = 0;
-//     }
-//     const intPtr = @intFromPtr(memBlock.ptr);
-//     metadata.put(intPtr, computedBytes) catch return null;
-//     return memBlock.ptr;
-// }
-
-// fn myRealloc(ptr: ?*anyopaque, size: usize) callconv(.C) ?*anyopaque {
-//     if (ptr) |p| {
-//         std.debug.print("myRealloc(ptr:{*}, size:{d}, metadata count: {d})\n", .{ p, size, metadata.count() });
-
-//         const intPtr = @intFromPtr(p);
-//         const originalSize = metadata.get(intPtr);
-//         if (originalSize == null) {
-//             @panic("ptr has unknown to metadata");
-//         } else {
-//             if (size == originalSize.?) {
-//                 // Size is unchanged, return the same pointer.
-//                 return p;
-//             } else if (size > originalSize.?) {
-//                 // Allocate a larger block
-//                 const newBlock = myMalloc(size);
-//                 if (newBlock == null) {
-//                     return null;
-//                 }
-//                 const oldSlice = @as([*]u8, @ptrCast(p))[0..originalSize.?];
-//                 const newSlice = @as([*]u8, @ptrCast(newBlock))[0..originalSize.?];
-//                 @memcpy(newSlice, oldSlice);
-//                 myFree(p); // Free the old block
-//                 return newBlock;
-//             } else {
-//                 // NOTE: This is not as efficient as normal code because this code is always
-//                 // allocating instead of just chopping off some tail portion of the original
-//                 // memory block. Zig's GPA does not let us do this and always wants to only
-//                 // ever free the head pointer. Maybe there is a way to make this work?
-//                 const newBlock = myMalloc(size);
-//                 if (newBlock == null) {
-//                     return null;
-//                 }
-//                 const oldSlice = @as([*]u8, @ptrCast(p))[0..size];
-//                 const newSlice = @as([*]u8, @ptrCast(newBlock))[0..size];
-//                 @memcpy(newSlice, oldSlice);
-//                 myFree(p); // Free the old block
-//                 return newBlock;
-//             }
-//         }
-//     }
-
-//     // Accoridng to docs, if the ptr is null it's the same as just calling malloc(new_size)
-//     // So for now, just dispatch to that call.
-//     return myMalloc(size);
-// }
-
-// fn myFree(memBlock: ?*anyopaque) callconv(.C) void {
-//     std.debug.assert(memBlock != null);
-
-//     const intPtr = @intFromPtr(memBlock.?);
-//     const size = metadata.get(intPtr).?;
-//     std.debug.print("myFree(ptr:{*}, bytes: {d}, metadata count:{d})\n", .{ memBlock.?, size, metadata.count() });
-//     defer {
-//         const ok = metadata.remove(intPtr);
-//         std.debug.assert(ok);
-//     }
-//     const slice: [*]u8 = @ptrCast(memBlock.?);
-//     alloc.free(slice[0..size]);
-// }
-
 var scopedAllocator = sa.ScopedAllocator.init();
-
 pub fn main() !void {
     try scopedAllocator.setup();
     defer scopedAllocator.wrappedReport();
+    try startGame();
+}
 
+fn startGame() !void {
     const cMemInter = scopedAllocator.getMemoryInterface();
     if (false) {
         // Setup SDL to use our custom scoped functions.
