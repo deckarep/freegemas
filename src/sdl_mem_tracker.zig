@@ -1,33 +1,54 @@
 const std = @import("std");
 const c = @import("cdefs.zig").c;
 
+fn printCategory(name: []const u8, allocs: usize, frees: usize) void {
+    const delta = @as(i32, @intCast(allocs)) - @as(i32, @intCast(frees));
+    std.debug.print("{s}: {s}\n", .{ name, if (delta == 0) "✅" else "❌" });
+    std.debug.print("  Allocs: {d}\n", .{allocs});
+    std.debug.print("  Frees:  {d}\n", .{frees});
+    std.debug.print("  Delta:  {d}\n\n", .{delta});
+}
+
 pub fn DumpReport() void {
-    std.debug.print("\n======SDL Resource Management======\n", .{});
-    std.debug.print("TTF_OpenFont => {d}\n", .{allocTTF_OpenFont.load(.seq_cst)});
-    std.debug.print("TTF_CloseFont => {d}\n", .{freeTTF_CloseFont.load(.seq_cst)});
+    std.debug.print("\n", .{});
 
-    std.debug.print("IMG_LoadTexture => (*Textr){d}\n", .{allocIMG_LoadTexture.load(.seq_cst)});
-    std.debug.print("SDL_DestroyTexture => (*Textr){d}\n", .{freeSDL_DestroyTexture.load(.seq_cst)});
+    // Category: Fonts
+    const fontAllocs = allocTTF_OpenFont.load(.acquire);
+    const fontFrees = freeTTF_CloseFont.load(.acquire);
+    printCategory("Fonts", fontAllocs, fontFrees);
 
-    std.debug.print("Mix_LoadMUS => {d}\n", .{allocMix_LoadMUS.load(.seq_cst)});
-    std.debug.print("Mix_FreeMusic => {d}\n", .{freeMix_FreeMusic.load(.seq_cst)});
+    // Category: Textures
+    const textureAllocs = allocIMG_LoadTexture.load(.acquire) + allocSDL_CreateTextureFromSurface.load(.acquire);
+    const textureFrees = freeSDL_DestroyTexture.load(.acquire);
+    printCategory("Textures", textureAllocs, textureFrees);
 
-    std.debug.print("Mix_LoadWAV => {d}\n", .{allocMix_LoadWAV.load(.seq_cst)});
-    std.debug.print("Mix_FreeChunk => {d}\n", .{freeMix_FreeChunk.load(.seq_cst)});
+    // Category: Music
+    const musicAllocs = allocMix_LoadMUS.load(.acquire);
+    const musicFrees = freeMix_FreeMusic.load(.acquire);
+    printCategory("Music", musicAllocs, musicFrees);
 
-    std.debug.print("SDL_FreeSurface => (*Surf){d}\n", .{freeSDL_Surface.load(.seq_cst)});
+    // Category: Waves
+    const waveAllocs = allocMix_LoadWAV.load(.acquire);
+    const waveFrees = freeMix_FreeChunk.load(.acquire);
+    printCategory("Waves", waveAllocs, waveFrees);
 
-    std.debug.print("SDL_CreateTextureFromSurface (*Textr)=> {d}\n", .{allocSDL_CreateTextureFromSurface.load(.seq_cst)});
-    std.debug.print("SDL_CreateRGBSurfaceWithFormat (*Surf)=> {d}\n", .{alloc_SDL_CreateRGBSurfaceWithFormat.load(.seq_cst)});
+    // Category: Surfaces
+    const surfaceAllocs =
+        alloc_SDL_CreateRGBSurfaceWithFormat.load(.acquire) +
+        allocTTF_RenderUTF8_Blended.load(.acquire) +
+        allocTTF_RenderUTF8_Blended_Wrapped.load(.acquire);
+    const surfaceFrees = freeSDL_Surface.load(.acquire);
+    printCategory("Surfaces", surfaceAllocs, surfaceFrees);
 
-    std.debug.print("TTF_RenderUTF8_Blended (*Surf)=> {d}\n", .{allocTTF_RenderUTF8_Blended.load(.seq_cst)});
-    std.debug.print("TTF_RenderUTF8_BlendedWrapped (*Surf)=> {d}\n", .{allocTTF_RenderUTF8_Blended_Wrapped.load(.seq_cst)});
+    // Final Totals
+    const totalAllocs = alloc.load(.seq_cst);
+    const totalFrees = free.load(.seq_cst);
+    const totalDelta = @as(i32, @intCast(totalAllocs)) - @as(i32, @intCast(totalFrees));
 
-    std.debug.print("Total allocs: {d}\n", .{alloc.load(.seq_cst)});
-    std.debug.print("Total frees: {d}\n", .{free.load(.seq_cst)});
-    std.debug.print("Diff => {d}\n", .{@as(i32, @intCast(alloc.load(.seq_cst))) - @as(i32, @intCast(free.load(.seq_cst)))});
-
-    //@panic("TODO: surfaces, wavs, scan all code and ensure SDL calls only occur here!");
+    std.debug.print("====== SDL Resource Management Summary ======\n", .{});
+    std.debug.print("Total Allocations: {d}\n", .{totalAllocs});
+    std.debug.print("Total Frees:       {d}\n", .{totalFrees});
+    std.debug.print("Total Delta:       {d}\n", .{totalDelta});
 }
 
 var lock: std.Thread.Mutex = .{};
