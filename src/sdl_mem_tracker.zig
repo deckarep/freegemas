@@ -12,27 +12,27 @@ fn printCategory(name: []const u8, allocs: usize, frees: usize) void {
 pub fn DumpReport() void {
     std.debug.print("\n", .{});
 
-    // Category: Fonts
+    // Fonts
     const fontAllocs = allocTTF_OpenFont.load(.acquire);
     const fontFrees = freeTTF_CloseFont.load(.acquire);
     printCategory("Fonts", fontAllocs, fontFrees);
 
-    // Category: Textures
+    // Textures
     const textureAllocs = allocIMG_LoadTexture.load(.acquire) + allocSDL_CreateTextureFromSurface.load(.acquire);
     const textureFrees = freeSDL_DestroyTexture.load(.acquire);
     printCategory("Textures", textureAllocs, textureFrees);
 
-    // Category: Music
+    // Music
     const musicAllocs = allocMix_LoadMUS.load(.acquire);
     const musicFrees = freeMix_FreeMusic.load(.acquire);
     printCategory("Music", musicAllocs, musicFrees);
 
-    // Category: Waves
+    // Waves
     const waveAllocs = allocMix_LoadWAV.load(.acquire);
     const waveFrees = freeMix_FreeChunk.load(.acquire);
     printCategory("Waves", waveAllocs, waveFrees);
 
-    // Category: Surfaces
+    // Surfaces
     const surfaceAllocs =
         alloc_SDL_CreateRGBSurfaceWithFormat.load(.acquire) +
         allocTTF_RenderUTF8_Blended.load(.acquire) +
@@ -61,7 +61,7 @@ pub fn initMemTracker(gpa: std.mem.Allocator) void {
 }
 
 pub fn deinitMemTracker() void {
-    // std.debug.assert(txtrTracker.?.count() == 0);
+    std.debug.assert(txtrTracker.?.count() == 0);
     txtrTracker.?.deinit();
 }
 
@@ -102,7 +102,6 @@ pub inline fn SDL_DestroyTexture(texture: ?*c.SDL_Texture) void {
 
     _ = free.fetchAdd(1, .monotonic);
     _ = freeSDL_DestroyTexture.fetchAdd(1, .monotonic);
-    std.debug.print("c.SDL_DestroyTexture({*})\n", .{texture});
     std.debug.assert(txtrTracker.?.remove(texture.?) == true);
     c.SDL_DestroyTexture(texture);
 }
