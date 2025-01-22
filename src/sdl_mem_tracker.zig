@@ -30,6 +30,7 @@ pub fn DumpReport() void {
     //@panic("TODO: surfaces, wavs, scan all code and ensure SDL calls only occur here!");
 }
 
+var lock: std.Thread.Mutex = .{};
 pub var txtrTracker: ?std.AutoHashMap(*c.SDL_Texture, usize) = undefined;
 
 pub fn initMemTracker(gpa: std.mem.Allocator) void {
@@ -133,6 +134,8 @@ pub inline fn SDL_CreateTextureFromSurface(renderer: ?*c.SDL_Renderer, surface: 
 
     std.debug.assert(txtr != null);
 
+    lock.lock();
+    defer lock.unlock();
     txtrTracker.?.put(txtr.?, @intFromPtr(txtr.?)) catch unreachable;
 
     return txtr;
