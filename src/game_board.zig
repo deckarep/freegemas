@@ -881,7 +881,7 @@ pub const GameBoard = struct {
                     const blockMidX = glConsts.Board.XOffset + @as(i32, @intCast(m.super.items[i].x.?)) * glConsts.Board.GemWH + glConsts.Board.GemHalfWH;
                     const blockMidY = glConsts.Board.YOffset + @as(i32, @intCast(m.super.items[i].y.?)) * glConsts.Board.GemWH + glConsts.Board.GemHalfWH;
 
-                    if (false) {
+                    if (true) {
                         try self.mParticleSysList.append(try ps.ParticleSystem.init(
                             &self.mImgParticle1,
                             &self.mImgParticle2,

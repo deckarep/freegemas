@@ -7,10 +7,13 @@ pub fn DumpReport() void {
     std.debug.print("TTF_CloseFont => {d}\n", .{freeTTF_CloseFont.load(.seq_cst)});
 
     std.debug.print("IMG_LoadTexture => (*Textr){d}\n", .{allocIMG_LoadTexture.load(.seq_cst)});
-    std.debug.print("SDL_DestroyTexture => (*Surf){d}\n", .{freeSDL_DestroyTexture.load(.seq_cst)});
+    std.debug.print("SDL_DestroyTexture => (*Textr){d}\n", .{freeSDL_DestroyTexture.load(.seq_cst)});
 
     std.debug.print("Mix_LoadMUS => {d}\n", .{allocMix_LoadMUS.load(.seq_cst)});
     std.debug.print("Mix_FreeMusic => {d}\n", .{freeMix_FreeMusic.load(.seq_cst)});
+
+    std.debug.print("Mix_LoadWAV => {d}\n", .{allocMix_LoadWAV.load(.seq_cst)});
+    std.debug.print("Mix_FreeChunk => {d}\n", .{freeMix_FreeChunk.load(.seq_cst)});
 
     std.debug.print("SDL_FreeSurface => (*Surf){d}\n", .{freeSDL_Surface.load(.seq_cst)});
 
@@ -36,6 +39,7 @@ pub fn initMemTracker(gpa: std.mem.Allocator) void {
 }
 
 pub fn deinitMemTracker() void {
+    // std.debug.assert(txtrTracker.?.count() == 0);
     txtrTracker.?.deinit();
 }
 
@@ -73,10 +77,11 @@ pub inline fn IMG_LoadTexture(renderer: ?*c.SDL_Renderer, file: [:0]const u8) ?*
 
 pub inline fn SDL_DestroyTexture(texture: ?*c.SDL_Texture) void {
     std.debug.assert(texture != null);
+
     _ = free.fetchAdd(1, .monotonic);
     _ = freeSDL_DestroyTexture.fetchAdd(1, .monotonic);
     std.debug.print("c.SDL_DestroyTexture({*})\n", .{texture});
-    //std.debug.assert(txtrTracker.?.remove(texture.?) == true);
+    std.debug.assert(txtrTracker.?.remove(texture.?) == true);
     c.SDL_DestroyTexture(texture);
 }
 
@@ -93,6 +98,22 @@ pub inline fn Mix_FreeMusic(sample: ?*c.Mix_Music) void {
     _ = free.fetchAdd(1, .monotonic);
     _ = freeMix_FreeMusic.fetchAdd(1, .monotonic);
     c.Mix_FreeMusic(sample);
+}
+
+var allocMix_LoadWAV = std.atomic.Value(usize).init(0);
+var freeMix_FreeChunk = std.atomic.Value(usize).init(0);
+
+pub inline fn Mix_LoadWAV(file: [:0]const u8) *c.Mix_Chunk {
+    _ = alloc.fetchAdd(1, .monotonic);
+    _ = allocMix_LoadWAV.fetchAdd(1, .monotonic);
+    std.debug.print("c.Mix_LoadWAV({s})\n", .{file});
+    return c.Mix_LoadWAV(file);
+}
+
+pub inline fn Mix_FreeChunk(sample: ?*c.Mix_Chunk) void {
+    _ = free.fetchAdd(1, .monotonic);
+    _ = freeMix_FreeChunk.fetchAdd(1, .monotonic);
+    c.Mix_FreeChunk(sample);
 }
 
 var freeSDL_Surface = std.atomic.Value(usize).init(0);

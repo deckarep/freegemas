@@ -17,6 +17,9 @@ pub fn getCacheLoader() *CacheLoader {
 }
 
 const CacheObject = struct {
+    // TODO: Makes more sense for everything to start with a 1 because the math works.
+    // 1 - means one reference is out in the wild.
+    // 0 - means, no more references, safe to destroy.
     count: usize = 0,
     data: *anyopaque,
 };
@@ -65,7 +68,7 @@ pub const CacheLoader = struct {
     fn decRefCountForKey(self: *Self, key: []const u8) bool {
         // If we're not at 0, just decrement the reference count.
         var cacheObjPtr = self.cache.getPtr(key).?;
-        if (cacheObjPtr.count > 0) {
+        if (cacheObjPtr.count > 1) {
             cacheObjPtr.count -= 1;
             // NOTE: decrementing the reference count counts as a valid Destroy.
             return true;
@@ -96,12 +99,12 @@ pub const CacheLoader = struct {
         // Take an owned copy of the key for safety, since the passed in path could
         // be stack allocated!!!
         const ownedKey = try self.gpa.dupe(u8, fontKey);
-        try self.cache.put(ownedKey, CacheObject{ .data = font.?, .count = 0 });
+        try self.cache.put(ownedKey, CacheObject{ .data = font.?, .count = 1 });
 
         return font;
     }
 
-    pub fn DestroyFont(self: *Self, font: *c.TTF_Font) bool {
+    pub fn DestroyFont(self: *Self, font: *c.TTF_Font) void {
         // For now, just iterate to find the item.
         var iter = self.cache.iterator();
         var whichKey: ?[]const u8 = null;
@@ -114,13 +117,19 @@ pub const CacheLoader = struct {
         // NOTE: This can occur if you attempt to load the same asset multiple times.
         // Any subsequent destroy calls will be a NOP as expected.
         if (whichKey == null) {
-            // Nothing to do for now.
-            return false;
+            // NOTE: if no key was found, the font in question is unknown to the cache.
+            // But we still free it, otherwise it's a legit leak. This can occur when the
+            // the font was not created from LoadFont but something else.
+
+            // As it stands, we can end up with a free count that is higher than alloc count.
+
+            trkr.TTF_CloseFont(font);
+            return;
         }
 
         if (self.decRefCountForKey(whichKey.?)) {
-            // If true, we're done for now.
-            return true;
+            // We're done for now.
+            return;
         }
 
         // Destroy the font.
@@ -131,8 +140,6 @@ pub const CacheLoader = struct {
 
         // Delete the owned key.
         self.gpa.free(whichKey.?);
-
-        return true;
     }
 
     /// This function loads wavs.
@@ -144,13 +151,13 @@ pub const CacheLoader = struct {
             return @alignCast(@ptrCast(self.cache.get(path).?.data));
         }
 
-        const sample = c.Mix_LoadWAV(path.ptr);
+        const sample = trkr.Mix_LoadWAV(path);
         std.debug.print("wav: {s} loaded for the first time.\n", .{path});
 
         // Take an owned copy of the key for safety, since the passed in path could
         // be stack allocated!!!
         const ownedKey = try self.gpa.dupe(u8, path);
-        try self.cache.put(ownedKey, CacheObject{ .data = sample, .count = 0 });
+        try self.cache.put(ownedKey, CacheObject{ .data = sample, .count = 1 });
 
         return sample;
     }
@@ -169,7 +176,12 @@ pub const CacheLoader = struct {
         // NOTE: This can occur if you attempt to load the same asset multiple times.
         // Any subsequent destroy calls will be a NOP as expected.
         if (whichKey == null) {
-            // Nothing to do for now.
+
+            // NOTE: if no key was found, the wave in question is unknown to the cache.
+            // But we still free it, otherwise it's a legit leak. This can occur when the
+            // the wave was not created from LoadWav but something else.
+
+            trkr.Mix_FreeChunk(sample);
             return;
         }
 
@@ -179,7 +191,7 @@ pub const CacheLoader = struct {
         }
 
         // Destroy the wav sample.
-        c.Mix_FreeChunk(sample);
+        trkr.Mix_FreeChunk(sample);
 
         // Remove the entry
         std.debug.assert(self.cache.remove(whichKey.?));
@@ -207,7 +219,7 @@ pub const CacheLoader = struct {
         // Take an owned copy of the key for safety, since the passed in path could
         // be stack allocated!!!
         const ownedKey = try self.gpa.dupe(u8, path);
-        try self.cache.put(ownedKey, CacheObject{ .data = sample.?, .count = 0 });
+        try self.cache.put(ownedKey, CacheObject{ .data = sample.?, .count = 1 });
 
         return sample;
     }
@@ -229,6 +241,13 @@ pub const CacheLoader = struct {
         if (whichKey == null) {
             // NOTE: This can occur if you attempt to load the same asset multiple times.
             // Any subsequent destroy calls will be a NOP as expected.
+
+            // NOTE: if no key was found, the music in question is unknown to the cache.
+            // But we still free it, otherwise it's a legit leak. This can occur when the
+            // the music was not created from LoadMusic but some other function.
+            // As it stands, we can end up with a free count that is higher than alloc count.
+
+            trkr.Mix_FreeMusic(sample);
 
             // Nothing to do.
             return;
@@ -273,13 +292,13 @@ pub const CacheLoader = struct {
         // be stack allocated!!!
         const ownedKey = try self.gpa.dupe(u8, path);
         // This is the first we've seen of the item, so it has a starting ref count of zero.
-        try self.cache.put(ownedKey, CacheObject{ .data = img.?, .count = 0 });
+        try self.cache.put(ownedKey, CacheObject{ .data = img.?, .count = 1 });
 
         return img;
     }
 
     /// This function destroys an image (texture).
-    pub fn DestroyImage(self: *Self, img: *c.SDL_Texture) bool {
+    pub fn DestroyImage(self: *Self, img: *c.SDL_Texture) void {
         // Note: we only have a handle to the original pointer in the cache (possibly)
         // So we just scan for it and delete it if found.
 
@@ -296,16 +315,22 @@ pub const CacheLoader = struct {
             }
         }
 
+        // Attemp to Destroy a texture that has no key entry in the cache!!!
         if (whichKey == null) {
-            // Nothing to do for now...
-            // NOTE: This can occur if you attempt to load the same asset multiple times.
-            // Any subsequent destroy calls will be a NOP as expected.
-            return false;
+            // NOTE: if no key was found, the texture in question is unknown to the cache.
+            // But we still free it, otherwise it's a legit leak. This can occur when the
+            // the texture was not created from LoadImage but something else such as:
+            // c.SDL_CreateTextureFromSurface for example.
+            // As it stands, we can end up with a free count that is higher than alloc count.
+
+            trkr.SDL_DestroyTexture(img);
+
+            return;
         }
 
         if (self.decRefCountForKey(whichKey.?)) {
-            // If true, we're done for now so return true.
-            return true;
+            // We're done for now so return.
+            return;
         }
 
         // Otherwise, release everything, for reals Nacho.
@@ -319,6 +344,6 @@ pub const CacheLoader = struct {
         // Clean the owned copy of the key.
         self.gpa.free(whichKey.?);
 
-        return true;
+        return;
     }
 };

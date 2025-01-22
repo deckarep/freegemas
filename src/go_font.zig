@@ -30,11 +30,7 @@ pub const GoFont = struct {
     pub fn deinit(self: *Self) void {
         if (self.mFont) |fnt| {
             const cacher = cl.getCacheLoader();
-            const ok = cacher.DestroyFont(fnt);
-            if (!ok) {
-                std.log.warn("Cache didn't actually DestroyFont!!!", .{});
-                //trkr.TTF_CloseFont(fnt);
-            }
+            cacher.DestroyFont(fnt);
             self.mFont = null;
         }
     }
@@ -58,11 +54,7 @@ pub const GoFont = struct {
         const cacher = cl.getCacheLoader();
 
         if (self.mFont) |fnt| {
-            const ok = cacher.DestroyFont(fnt);
-            if (!ok) {
-                //trkr.TTF_CloseFont(fnt);
-                std.log.warn("Cache didn't actually DestroyFont!!!", .{});
-            }
+            cacher.DestroyFont(fnt);
             self.mFont = null;
         }
 

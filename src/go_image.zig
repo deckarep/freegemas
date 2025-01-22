@@ -34,12 +34,7 @@ pub const GoImage = struct {
 
         if (self.mTexture) |txt| {
             const cache = cl.getCacheLoader();
-            const ok = cache.DestroyImage(txt);
-            if (!ok) {
-                std.log.warn("Cache actually didn't DestroyImage!!!", .{});
-                // Fallback by destroying the texture directly!
-                //trkr.SDL_DestroyTexture(txt);
-            }
+            cache.DestroyImage(txt);
             self.mTexture = null;
         }
     }
@@ -78,12 +73,7 @@ pub const GoImage = struct {
         if (self.mTexture) |txt| {
             // WARNING: Only do this, if the incoming texture is NOT EQUAL to the existing txt reference.
             if (texture.? != txt) {
-                const ok = cache.DestroyImage(txt);
-                if (!ok) {
-                    // Fallback by destroying the texture directly!
-                    //trkr.SDL_DestroyTexture(txt);
-                    std.log.warn("Cache actually didn't DestroyImage!!!", .{});
-                }
+                cache.DestroyImage(txt);
             }
         }
 
@@ -103,12 +93,7 @@ pub const GoImage = struct {
             // WARNING: Only do this, if the incoming texture is NOT EQUAL to the existing txt reference.
             if (texture.? != txt) {
                 const cache = cl.getCacheLoader();
-                const ok = cache.DestroyImage(txt);
-                if (!ok) {
-                    // Fallback by destroying the texture directly!
-                    // trkr.SDL_DestroyTexture(txt);
-                    std.log.warn("Cache actually didn't DestroyImage!!!", .{});
-                }
+                cache.DestroyImage(txt);
             }
         }
 
