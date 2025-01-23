@@ -7,15 +7,15 @@ const sa = @import("sdl_scoped_allocator.zig");
 
 var scopedAllocator = sa.ScopedAllocator.init();
 
-const hi = *const fn (name: []const u8) void;
+// const hi = *const fn (name: []const u8) void;
 
-fn sayHi(name: []const u8) void {
-    std.debug.print("name => {s}\n", .{name});
-}
+// fn sayHi(name: []const u8) void {
+//     std.debug.print("name => {s}\n", .{name});
+// }
 pub fn main() !void {
-    var item = trkr.Stuff(hi).init();
-    item.setHi(sayHi);
-    item.call("Bob");
+    // var item = trkr.Stuff(hi).init();
+    // item.setHi(sayHi);
+    // item.call("Bob");
 
     try scopedAllocator.setup();
     defer scopedAllocator.wrappedReport();
@@ -44,15 +44,16 @@ fn startGame() !void {
         }
     }
 
-    trkr.initMemTracker(scopedAllocator.allocator());
+    var tracker = trkr.SDLMemoryTracker.init(scopedAllocator.allocator(), 32);
+    tracker.install();
 
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-    defer trkr.DumpReport();
+    defer tracker.DumpReport();
 
     defer scopedAllocator.deinit();
     defer sa.mapping.deinit();
 
-    defer trkr.deinitMemTracker();
+    defer tracker.deinit();
     defer sa.metadata.deinit();
 
     // Clean the stackFrameDeduper data.
@@ -69,19 +70,19 @@ fn startGame() !void {
     try w.show();
 
     // Cross reference whatever is left
-    var txtrIter = trkr.txtrTracker.?.iterator();
-    while (txtrIter.next()) |entry| {
-        const txtrIntPtr = @intFromPtr(entry.key_ptr.*);
-        if (sa.metadata.contains(txtrIntPtr)) {
-            var width: c_int = undefined;
-            var height: c_int = undefined;
-            _ = c.SDL_QueryTexture(entry.key_ptr.*, null, null, &width, &height);
+    // var txtrIter = trkr.txtrTracker.?.iterator();
+    // while (txtrIter.next()) |entry| {
+    //     const txtrIntPtr = @intFromPtr(entry.key_ptr.*);
+    //     if (sa.metadata.contains(txtrIntPtr)) {
+    //         var width: c_int = undefined;
+    //         var height: c_int = undefined;
+    //         _ = c.SDL_QueryTexture(entry.key_ptr.*, null, null, &width, &height);
 
-            if (width == 65 and height == 65) continue;
-            if (width == 38 and height == 38) continue;
-            std.debug.print("Found texture unaccounted for: {*} => ({d}w, {d}h)\n", .{ entry.key_ptr.*, width, height });
-        }
-    }
+    //         if (width == 65 and height == 65) continue;
+    //         if (width == 38 and height == 38) continue;
+    //         std.debug.print("Found texture unaccounted for: {*} => ({d}w, {d}h)\n", .{ entry.key_ptr.*, width, height });
+    //     }
+    // }
 
     std.debug.print("Metadata count before goWindow.deinit => {d}\n", .{sa.metadata.count()});
 
