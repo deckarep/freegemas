@@ -42,8 +42,6 @@ pub const GoSound = struct {
             const cache = cl.getCacheLoader();
             cache.DestroyWav(sample);
             self.mSample = null;
-
-            std.debug.print("sound released...\n", .{});
         }
     }
 

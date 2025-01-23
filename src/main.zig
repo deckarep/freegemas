@@ -6,7 +6,17 @@ const trkr = @import("sdl_mem_tracker.zig");
 const sa = @import("sdl_scoped_allocator.zig");
 
 var scopedAllocator = sa.ScopedAllocator.init();
+
+const hi = *const fn (name: []const u8) void;
+
+fn sayHi(name: []const u8) void {
+    std.debug.print("name => {s}\n", .{name});
+}
 pub fn main() !void {
+    var item = trkr.Stuff(hi).init();
+    item.setHi(sayHi);
+    item.call("Bob");
+
     try scopedAllocator.setup();
     defer scopedAllocator.wrappedReport();
     try startGame();

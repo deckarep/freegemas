@@ -147,12 +147,13 @@ pub const CacheLoader = struct {
         if (self.cache.contains(path)) {
             self.incRefCountForKey(path);
             // Return the obj, it's already known and cached.
-            std.debug.print("wav: {s} already loaded yay!\n", .{path});
-            return @alignCast(@ptrCast(self.cache.get(path).?.data));
+            const sample: *c.Mix_Chunk = @alignCast(@ptrCast(self.cache.get(path).?.data));
+            std.debug.print("wav: {s} ptr: {*} already loaded yay!\n", .{ path, sample });
+            return sample;
         }
 
         const sample = trkr.Mix_LoadWAV(path);
-        std.debug.print("wav: {s} loaded for the first time.\n", .{path});
+        std.debug.print("wav: {s} loaded: ptr {*} for the first time.\n", .{ path, sample });
 
         // Take an owned copy of the key for safety, since the passed in path could
         // be stack allocated!!!
@@ -273,7 +274,6 @@ pub const CacheLoader = struct {
     /// loading thanks to caching. All calls to Load must have matching calls to Destroy.
     /// This is because Load/Destroy does referencing counting.
     pub fn LoadImage(self: *Self, renderer: ?*c.SDL_Renderer, path: [:0]const u8) !?*c.SDL_Texture {
-        std.debug.print("LoadImage: for path: {s}, cache size: {d}\n", .{ path, self.cache.count() });
         if (self.cache.contains(path)) {
             self.incRefCountForKey(path);
             // Return the obj.
@@ -281,7 +281,7 @@ pub const CacheLoader = struct {
             return @alignCast(@ptrCast(self.cache.get(path).?.data));
         }
 
-        std.debug.print("img: {s} loaded for the first time.\n", .{path});
+        //std.debug.print("img: {s} loaded for the first time.\n", .{path});
         const img = trkr.IMG_LoadTexture(renderer, path);
         if (img == null) {
             // TODO: handle this better.

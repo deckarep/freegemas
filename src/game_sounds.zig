@@ -8,13 +8,12 @@ pub const GameSounds = struct {
     soundsLoaded: bool = false,
     options: om.OptionsManager = undefined,
 
-    mSfxMatch1: goSnd.GoSound = undefined,
-    mSfxMatch2: goSnd.GoSound = undefined,
-    mSfxMatch3: goSnd.GoSound = undefined,
-    mSfxSelect: goSnd.GoSound = undefined,
-    mSfxFall: goSnd.GoSound = undefined,
+    mSfxMatch1: goSnd.GoSound = goSnd.GoSound.init(),
+    mSfxMatch2: goSnd.GoSound = goSnd.GoSound.init(),
+    mSfxMatch3: goSnd.GoSound = goSnd.GoSound.init(),
+    mSfxSelect: goSnd.GoSound = goSnd.GoSound.init(),
+    mSfxFall: goSnd.GoSound = goSnd.GoSound.init(),
 
-    //mSfxOldLamps: goSnd.GoSound = undefined,
     mSfxAvatarSounds: ?[]goSnd.GoSound = null,
 
     const Self = @This();
@@ -40,6 +39,7 @@ pub const GameSounds = struct {
     }
 
     pub fn loadResources(self: *Self) !void {
+        std.debug.print("game_sounds.zig:loadResources() invoked...\n", .{});
         self.options.loadResources();
 
         if (self.options.getSoundEnabled() and !self.soundsLoaded) {
@@ -48,6 +48,8 @@ pub const GameSounds = struct {
             try self.mSfxMatch3.setSample(glConsts.Sfx.Match1);
             try self.mSfxSelect.setSample("media/select.ogg");
             try self.mSfxFall.setSample("media/fall.ogg");
+
+            std.debug.print("sound sfx loaded...\n", .{});
 
             self.soundsLoaded = true;
         } else if (!self.options.getSoundEnabled() and self.soundsLoaded) {
