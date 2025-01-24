@@ -109,11 +109,6 @@ pub const SDLMemoryTracker = struct {
         const fontFrees = self.stats.freeTTF_CloseFont;
         self.printCategory("Fonts", fontAllocs, fontFrees);
 
-        // Textures
-        const textureAllocs = self.stats.allocIMG_LoadTexture + self.stats.allocSDL_CreateTextureFromSurface;
-        const textureFrees = self.stats.freeSDL_DestroyTexture;
-        self.printCategory("Textures", textureAllocs, textureFrees);
-
         // Music
         const musicAllocs = self.stats.allocMix_LoadMUS;
         const musicFrees = self.stats.freeMix_FreeMusic;
@@ -123,6 +118,11 @@ pub const SDLMemoryTracker = struct {
         const waveAllocs = self.stats.allocMix_LoadWAV;
         const waveFrees = self.stats.freeMix_FreeChunk;
         self.printCategory("Waves", waveAllocs, waveFrees);
+
+        // Textures
+        const textureAllocs = self.stats.allocIMG_LoadTexture + self.stats.allocSDL_CreateTextureFromSurface;
+        const textureFrees = self.stats.freeSDL_DestroyTexture;
+        self.printCategory("Textures", textureAllocs, textureFrees);
 
         // Surfaces
         const surfaceAllocs =
@@ -156,10 +156,11 @@ pub const SDLMemoryTracker = struct {
         std.debug.captureStackTrace(gTracker.retAddress, &stackTrace);
 
         // Hash the stackframe, but hashing operates on: []const u8, so need to reinterpret.
-        // TODO: test this reinterpretation of memory.
         var hash = std.hash.Wyhash.init(0);
-        const reinterpretPtr: [*]u8 = @alignCast(@ptrCast(stackTrace.instruction_addresses.ptr));
-        hash.update(reinterpretPtr[0 .. @sizeOf(usize) * stackTrace.instruction_addresses.len]);
+        // NOTE: this works, but I can just use the: std.mem.asBytes() function!.
+        // const reinterpretPtr: [*]u8 = @alignCast(@ptrCast(stackTrace.instruction_addresses.ptr));
+        // hash.update(reinterpretPtr[0 .. @sizeOf(usize) * stackTrace.instruction_addresses.len]);
+        hash.update(std.mem.asBytes(stackTrace.instruction_addresses));
         const hashKey = hash.final();
 
         if (self.stackTraceDeduped.getPtr(hashKey)) |trace| {
