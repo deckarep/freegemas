@@ -33,16 +33,24 @@ pub const SDLMemoryTracker = struct {
     stats: Stats = Stats{},
 
     retAddress: ?usize = null,
-    stackTraces: std.AutoHashMap(usize, std.builtin.StackTrace),
     maxStackSize: usize,
+    totalLeaks: usize = 0,
+    stackTraces: std.AutoHashMap(usize, u64),
+    stackTraceDeduped: std.AutoHashMap(u64, UniqueTrace),
 
     const Self = @This();
+
+    const UniqueTrace = struct {
+        trace: std.builtin.StackTrace,
+        count: usize = 0,
+    };
 
     pub fn init(gpa: std.mem.Allocator, stackSize: usize) Self {
         return Self{
             .allocator = gpa,
             .maxStackSize = stackSize,
-            .stackTraces = std.AutoHashMap(usize, std.builtin.StackTrace).init(gpa),
+            .stackTraces = std.AutoHashMap(usize, u64).init(gpa),
+            .stackTraceDeduped = std.AutoHashMap(u64, UniqueTrace).init(gpa),
         };
     }
 
@@ -54,26 +62,32 @@ pub const SDLMemoryTracker = struct {
         defer {
             gTracker = undefined;
             self.stackTraces.deinit();
+            self.stackTraceDeduped.deinit();
         }
 
         // 1. Report on unaccounted for leaks.
         const leakCount = self.stackTraces.count();
         if (leakCount > 0) {
-            std.debug.print("Found: {d} SDL Resource leaks!\n", .{leakCount});
+            std.debug.print("Found: {d} SDL Resource leaks!\n", .{self.totalLeaks});
             std.debug.print("==============================\n", .{});
 
             var iter = self.stackTraces.iterator();
-            var counter: usize = 0;
             while (iter.next()) |entry| {
-                std.debug.print("Leak occurance: {d} of {d}\n", .{ counter + 1, leakCount });
-                std.debug.print("=========================\n", .{});
                 const key = entry.key_ptr.*;
-                const stackTrace = self.stackTraces.get(key).?;
-                std.debug.dumpStackTrace(stackTrace);
+                const stackKey = self.stackTraces.get(key).?;
+                if (self.stackTraceDeduped.get(stackKey)) |trace| {
+                    std.debug.print("=========================\n", .{});
+                    std.debug.print("Found leak instance for ptr {*}\n", .{@as(*anyopaque, @ptrFromInt(key))});
+                    std.debug.dumpStackTrace(trace.trace);
+                    // I can't free this here, because they are deduped and shared so I need a followup up cleanup loop!
+                    //self.allocator.free(trace.trace.instruction_addresses);
+                }
+            }
 
-                // Free the stack trace sitting on the heap.
-                self.allocator.free(stackTrace.instruction_addresses);
-                counter += 1;
+            // Clean up the heap allocated deduper data!
+            var dedupIter = self.stackTraceDeduped.iterator();
+            while (dedupIter.next()) |entry| {
+                self.allocator.free(entry.value_ptr.trace.instruction_addresses);
             }
         }
     }
@@ -141,48 +155,55 @@ pub const SDLMemoryTracker = struct {
 
         std.debug.captureStackTrace(gTracker.retAddress, &stackTrace);
 
+        // Hash the stackframe, but hashing operates on: []const u8, so need to reinterpret.
+        // TODO: test this reinterpretation of memory.
+        var hash = std.hash.Wyhash.init(0);
+        const reinterpretPtr: [*]u8 = @alignCast(@ptrCast(stackTrace.instruction_addresses.ptr));
+        hash.update(reinterpretPtr[0 .. @sizeOf(usize) * stackTrace.instruction_addresses.len]);
+        const hashKey = hash.final();
+
+        if (self.stackTraceDeduped.getPtr(hashKey)) |trace| {
+            // Already seen this stack trace? Just bump the count.
+            trace.count += 1;
+            // Free the addresses, as this instance doesn't require being stored.
+            self.allocator.free(addresses);
+        } else {
+            // Otherwise, register it as new!
+            self.stackTraceDeduped.put(hashKey, UniqueTrace{
+                .trace = stackTrace,
+                .count = 1,
+            }) catch return;
+        }
+
         const intPtr = @intFromPtr(ptr);
-        self.stackTraces.put(intPtr, stackTrace) catch return;
+        self.stackTraces.put(intPtr, hashKey) catch return;
+        self.totalLeaks += 1;
     }
 
-    // fn originalAcquireStackTrace(self: *Self, ptr: *anyopaque) void {
-    //     // This needs to be reset after its used...just in case a wrapped
-    //     // function that we're tracking fails to set it.
-    //     defer self.retAddress = null;
-
-    //     // TODO: dedup stacktraces, and just record a count everytime the
-    //     // same stacktrace is seen.
-
-    //     // 1. This line below just dumps to stderr output, with no control.
-    //     // std.debug.dumpCurrentStackTrace(null);
-
-    //     // 2. This, dumps to an ArrayList that we can inspect!
-    //     // We can look for any needles in the haystack as necessary to identify stacktraces
-    //     // that we want to look for.
-    //     var list = std.ArrayList(u8).initCapacity(
-    //         self.allocator,
-    //         1024 * 4,
-    //     ) catch return;
-    //     defer list.deinit();
-
-    //     const writer = list.writer();
-    //     const debugInfo = std.debug.getSelfDebugInfo() catch return;
-    //     std.debug.writeCurrentStackTrace(
-    //         writer,
-    //         debugInfo,
-    //         .no_color,
-    //         if (self.retAddress == null) @returnAddress() else self.retAddress.?,
-    //     ) catch return;
-
-    //     const intPtr = @intFromPtr(ptr);
-    //     self.stackTraces.put(intPtr, list.toOwnedSlice() catch return) catch return;
-    // }
-
     fn releaseStackTrace(self: *Self, ptr: *anyopaque) void {
-        if (self.stackTraces.fetchRemove(@intFromPtr(ptr))) |entry| {
-            self.allocator.free(entry.value.instruction_addresses);
-        } else {
-            @panic("Attempt to release a StackTrace for unknown ptr!");
+        var cleanAll = false;
+        var possibleDeleteTraceKey: ?u64 = null;
+        if (self.stackTraces.get(@intFromPtr(ptr))) |traceKey| {
+            possibleDeleteTraceKey = traceKey;
+            if (self.stackTraceDeduped.getPtr(traceKey)) |trace| {
+                if (trace.count > 1) {
+                    // Just decrement only!
+                    trace.count -= 1;
+                } else {
+                    // Safe to remove it all!
+                    cleanAll = true;
+                }
+                self.totalLeaks -= 1;
+            }
+        }
+
+        if (cleanAll) {
+            std.debug.assert(self.stackTraces.remove(@intFromPtr(ptr)));
+            // If we got here, we know we have a non-null possibleDeleteTraceKey!
+            if (self.stackTraceDeduped.getPtr(possibleDeleteTraceKey.?)) |trace| {
+                self.allocator.free(trace.trace.instruction_addresses);
+            }
+            std.debug.assert(self.stackTraceDeduped.remove(possibleDeleteTraceKey.?));
         }
     }
 
@@ -318,45 +339,36 @@ pub const SDLMemoryTracker = struct {
 pub fn TTF_OpenFont(file: [:0]const u8, ptsize: usize) ?*c.TTF_Font {
     gTracker.retAddress = @returnAddress();
 
-    // var addresses: [5]usize = undefined;
-    // @memset(&addresses, 0);
-    // var stackTrace = std.builtin.StackTrace{
-    //     .instruction_addresses = &addresses,
-    //     .index = 0,
-    // };
-    //std.debug.captureStackTrace(gTracker.retAddress, &stackTrace);
-
-    // for (addresses) |num| {
-    //     std.debug.print("address => {0x}\n", .{num});
-    // }
-
-    // std.debug.dumpStackTrace(stackTrace);
-    // std.process.exit(0);
     return gTracker.TTF_OpenFont(file, ptsize);
 }
 
 pub fn TTF_CloseFont(font: ?*c.TTF_Font) void {
     gTracker.retAddress = @returnAddress();
+
     return gTracker.TTF_CloseFont(font);
 }
 
 pub fn IMG_LoadTexture(renderer: ?*c.SDL_Renderer, file: [:0]const u8) ?*c.SDL_Texture {
     gTracker.retAddress = @returnAddress();
+
     return gTracker.IMG_LoadTexture(renderer, file);
 }
 
 pub fn SDL_DestroyTexture(texture: ?*c.SDL_Texture) void {
     gTracker.retAddress = @returnAddress();
+
     return gTracker.SDL_DestroyTexture(texture);
 }
 
 pub fn Mix_LoadMUS(file: [:0]const u8) ?*c.Mix_Music {
     gTracker.retAddress = @returnAddress();
+
     return gTracker.Mix_LoadMUS(file);
 }
 
 pub fn Mix_FreeMusic(sample: ?*c.Mix_Music) void {
     gTracker.retAddress = @returnAddress();
+
     return gTracker.Mix_FreeMusic(sample);
 }
 
@@ -367,11 +379,13 @@ pub fn Mix_LoadWAV(file: [:0]const u8) *c.Mix_Chunk {
 
 pub fn Mix_FreeChunk(sample: ?*c.Mix_Chunk) void {
     gTracker.retAddress = @returnAddress();
+
     return gTracker.Mix_FreeChunk(sample);
 }
 
 pub fn SDL_FreeSurface(surface: ?*c.SDL_Surface) void {
     gTracker.retAddress = @returnAddress();
+
     return gTracker.SDL_FreeSurface(surface);
 }
 
@@ -383,16 +397,19 @@ pub fn SDL_CreateTextureFromSurface(renderer: ?*c.SDL_Renderer, surface: ?*c.SDL
 
 pub fn SDL_CreateRGBSurfaceWithFormat(flags: u32, width: i32, height: i32, depth: i32, format: u32) *c.SDL_Surface {
     gTracker.retAddress = @returnAddress();
+
     return gTracker.SDL_CreateRGBSurfaceWithFormat(flags, width, height, depth, format);
 }
 
 pub fn TTF_RenderUTF8_Blended(renderer: ?*c.TTF_Font, text: [:0]const u8, fg: c.SDL_Color) *c.SDL_Surface {
     gTracker.retAddress = @returnAddress();
+
     return gTracker.TTF_RenderUTF8_Blended(renderer, text, fg);
 }
 
 pub fn TTF_RenderUTF8_Blended_Wrapped(renderer: ?*c.TTF_Font, text: [:0]const u8, fg: c.SDL_Color, wrapLen: u32) *c.SDL_Surface {
     gTracker.retAddress = @returnAddress();
+
     return gTracker.TTF_RenderUTF8_Blended_Wrapped(renderer, text, fg, wrapLen);
 }
 
